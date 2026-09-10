@@ -1,0 +1,35 @@
+model User {
+  id           String       @id @default(uuid()) @db.Uuid
+  name         String
+  email        String       @unique
+  password     String?
+  avatar       String?
+  platformRole PlatformRole @default(USER)
+  isActive     Boolean      @default(true)
+  emailVerified Boolean     @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // sessions Session[]
+  // accounts Account[]
+
+  // memberships OrganizationMember[]
+  // invitationsSent Invitation[]
+
+  // teamMemberships TeamMember[]
+  // projectMemberships ProjectMember[]
+
+  // assignedTasks Task[] @relation("TaskAssignee")
+  // createdTasks Task[] @relation("TaskCreator")
+
+  // comments Comment[]
+  // attachments Attachment[]
+  // mentions Mention[]
+  // activities Activity[]
+  // notifications Notification[]
+
+  // notificationPreference NotificationPreference?
+
+  @@index([email])
+}
