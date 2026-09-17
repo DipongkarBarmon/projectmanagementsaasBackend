@@ -37,6 +37,7 @@
     "crypto-js": "^4.2.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "http-status": "^2.1.0",
     "multer": "^2.3.0",
     "nodemailer": "^10.0.3",
     "pg": "^8.23.0"

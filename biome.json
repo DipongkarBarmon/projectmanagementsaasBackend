@@ -15,8 +15,22 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"preset": "recommended"
-		}
+			"preset": "recommended",
+			"style":{
+			  "useImportType":"off",
+				"useConst" : "off"
+			},
+			"correctness":{
+				 "noUnusedImports":"off",
+				 "noUnusedFunctionParameters":"info",
+				 "noUnusedVariables" : "off"
+				 
+			},
+			"suspicious" : {
+				"noExplicitAny" :"info"
+			}
+			 
+		} 
 	},
 	"javascript": {
 		"formatter": {
@@ -27,7 +41,7 @@
 		"enabled": true,
 		"actions": {
 			"source": {
-				"organizeImports": "on"
+				"organizeImports": "off"
 			}
 		}
 	}
