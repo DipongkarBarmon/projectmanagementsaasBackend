@@ -22,12 +22,16 @@
 			},
 			"correctness":{
 				 "noUnusedImports":"off",
-				 "noUnusedFunctionParameters":"info",
+				 "noUnusedFunctionParameters":"off",
 				 "noUnusedVariables" : "off"
 				 
 			},
 			"suspicious" : {
-				"noExplicitAny" :"info"
+				"noExplicitAny" :"info",
+				"noImplicitAnyLet":"info"
+			},
+			"complexity" : {
+				 "useOptionalChain":"off"
 			}
 			 
 		} 
