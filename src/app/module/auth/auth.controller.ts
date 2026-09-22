@@ -14,6 +14,24 @@ const register = catchAsync(async(req : Request,res : Response , next : NextFunc
    }
 
     const result = await AuthService.registerIntoDB(body, payload?.buffer)
+    const {accessToken,refreshToken} = result
+
+    
+    res.cookie("accessToken", accessToken, {
+       httpOnly:true,
+       sameSite :'lax',
+       secure : false,
+       maxAge : 1000*60*60*24 // 1 day
+       
+    } )
+    
+    res.cookie('refreshToken',refreshToken,{
+       secure : false,
+       httpOnly : true,
+       sameSite :'lax',
+       maxAge : 1000*60*60*24*7 //7d
+    })
+
     sendResponse(res,{
        success: true,
        statusCode : httpStatus.CREATED,
@@ -22,6 +40,37 @@ const register = catchAsync(async(req : Request,res : Response , next : NextFunc
     })
 })
 
+const userLogin = catchAsync(async(req : Request,res : Response , next : NextFunction)=> {
+    const body = req.body
+
+    const result = await AuthService.userloginFromBD(body)
+    
+    const {accessToken,refreshToken} = result
+    
+    res.cookie("accessToken", accessToken, {
+       httpOnly:true,
+       sameSite :'lax',
+       secure : false,
+       maxAge : 1000*60*60*24 // 1 day
+       
+    } )
+    
+    res.cookie('refreshToken',refreshToken,{
+       secure : false,
+       httpOnly : true,
+       sameSite :'lax',
+       maxAge : 1000*60*60*24*7 //7d
+    })
+
+    sendResponse(res,{
+       success: true,
+       statusCode : httpStatus.CREATED,
+       message : "User login successfully!",
+       data :result
+    })
+})
+
 export const AuthController = {
    register,
+   userLogin
 }

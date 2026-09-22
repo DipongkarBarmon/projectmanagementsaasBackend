@@ -8,14 +8,17 @@ model User {
   platformRole PlatformRole @default(USER)
   isActive     Boolean      @default(true)
   emailVerified Boolean     @default(false)
-
+  status             UserStatus @default(ACTIVE)
+  isDeleted          Boolean    @default(false)
+  deletedAt          DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
 
   // sessions Session[]
   // accounts Account[]
 
-  // memberships OrganizationMember[]
+  memberships OrganizationMember[]
   // invitationsSent Invitation[]
 
   // teamMemberships TeamMember[]
@@ -33,4 +36,5 @@ model User {
   // notificationPreference NotificationPreference?
 
   @@index([email])
+  
 }

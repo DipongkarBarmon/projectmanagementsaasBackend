@@ -15,6 +15,10 @@ const config = {
   cloudinary_cloud_name:process.env.CLOUDINARY_CLOUD_NAME!,
 	cloudinary_api_key:process.env.CLOUDINARY_API_KEY!,
 	cloudinary_api_secret:process.env.CLOUDINARY_API_SECRET!,
+  jwt_access_secret : process.env.JWT_ACCESS_SECRET!,
+  jwt_refresh_secret : process.env.JWT_REFRESH_SECRET!,
+  jwt_access_expiration : process.env.JWT_ACCESS_EXPIRATION!,
+  jwt_refresh_expiration : process.env.JWT_REFRESH_EXPIRATION!
 }
 export default config
 
