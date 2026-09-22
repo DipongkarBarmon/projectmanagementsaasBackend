@@ -13,7 +13,18 @@ const register = catchAsync(async(req : Request,res : Response , next : NextFunc
        throw new Error("No File Provided!")
    }
 
-    const result = await AuthService.registerIntoDB(body, payload?.buffer)
+    await AuthService.registerIntoDB(body, payload?.buffer)
+    sendResponse(res,{
+       success: true,
+       statusCode : httpStatus.CREATED,
+       message : "Email verification otp send successfully!",
+       data : null
+    })
+})
+
+const verifyEmail =catchAsync(async(req : Request,res : Response , next : NextFunction)=> {
+    const body = req.body
+    const result = await AuthService.verifyEmail(body)
     const {accessToken,refreshToken} = result
 
     
@@ -35,7 +46,7 @@ const register = catchAsync(async(req : Request,res : Response , next : NextFunc
     sendResponse(res,{
        success: true,
        statusCode : httpStatus.CREATED,
-       message : "User registration completed successfully!",
+       message : "Email verify successfully!",
        data : result
     })
 })
@@ -72,5 +83,7 @@ const userLogin = catchAsync(async(req : Request,res : Response , next : NextFun
 
 export const AuthController = {
    register,
-   userLogin
+   verifyEmail,
+   userLogin,
+   
 }

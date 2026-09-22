@@ -45,6 +45,11 @@ const registerZodSchema = z.object({
   }).optional()
 })
 
+const verifyEmailZodSchema = z.object({
+   email :z.string().email({message: "Invalid email address"}),
+   otp : z.string()
+})
+
 const loginZodSchema = z.object({
     body : z.object({
        email: z.string().email({message: "Invalid email address"}),
@@ -63,5 +68,6 @@ const loginZodSchema = z.object({
 
 export const AuthValidation = {
    registerZodSchema,
+   verifyEmailZodSchema,
    loginZodSchema
 }

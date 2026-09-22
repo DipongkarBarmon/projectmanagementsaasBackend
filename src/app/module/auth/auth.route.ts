@@ -11,6 +11,8 @@ router.post('/register',upload.single('avatar'),
   validationRequest(AuthValidation.registerZodSchema),
   AuthController.register)
 
+router.post('/verifyEmail',validationRequest(AuthValidation.verifyEmailZodSchema),AuthController.verifyEmail)
+
 router.post('/login',validationRequest(AuthValidation.loginZodSchema),AuthController.userLogin)
 
 export const AuthRouter = router

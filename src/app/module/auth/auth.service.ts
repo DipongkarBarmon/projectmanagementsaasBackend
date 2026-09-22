@@ -1,12 +1,16 @@
 import bcrypt from "bcryptjs"
 import { prisma } from "../../lib/prisma"
-import { ILoginPayload, IRegisterPayload } from "./auth.interface"
+import { ILoginPayload, IRegisterPayload, IVerifyEmailPayload } from "./auth.interface"
 import config from "../../config"
 import { uploadToCloudinary } from "../../lib/cloudinary"
 import { jwtUtiles } from "../../utils/jwt"
 import { SignOptions } from "jsonwebtoken"
 import crypto from 'crypto'
 import { redisClient } from "../../lib/redis"
+import path from "path"
+import ejs from 'ejs'
+import { transporter } from "../../lib/nodemailer"
+import { json } from "zod"
 
 
 
@@ -55,7 +59,7 @@ const registerIntoDB = async(payload : IRegisterPayload,fileBuffer : Buffer) => 
        }
     })
 
-    const registerPayloadKey =  `register-data :${email}`
+    const registerPayloadKey =  `register-data:${email}`
     const registerPayload = {
        name,
        email,
@@ -73,14 +77,72 @@ const registerIntoDB = async(payload : IRegisterPayload,fileBuffer : Buffer) => 
     })
 
     
+    const templatePath =  path.join(process.cwd(),'src/app/templates/register-otp-email')
+    const templateData = {
+       name,
+       otp,
+       expiresIn :expiration/60
+    }
+    const html = await ejs.renderFile(templatePath,templateData)
+
+    await transporter.sendMail({
+       from :`Dipongkar <${config.smtp_sender}>`,
+       to : email,
+       subject : "Verification OTP sent",
+       html
+    })
     
-    const createUser = await prisma.user.create({
+}
+
+const verifyEmail = async(payload :IVerifyEmailPayload)=>{
+     const {email,otp} = payload
+
+     if(!otp) {
+       throw new Error("OTP not found.Please provide opt!")
+     }
+     
+     const user = await prisma.user.findUnique({
+       where : { 
+         email
+       }
+     })
+
+     if(user){
+       throw  new Error("User all ready registered with this email")
+     }
+
+     const otpKey = `register-otp:${email}`
+
+     const redisOtp = await redisClient.get(otpKey)
+
+     if(!redisOtp){
+       throw new Error("Redis otp not found in redis")
+     }
+     
+     if(otp!==redisOtp){
+       throw new Error("Opt is not correct,Please provide correct otp!")
+     }
+
+     await redisClient.del(otpKey)
+
+     const registerPayloadKey =  `register-data:${email}`
+     
+     const registerDataPayload = await redisClient.get(registerPayloadKey)
+    
+     if(!registerDataPayload) {
+       throw new Error("Register data not found in Redis!")
+     }
+
+     const userData : IRegisterPayload = JSON.parse(registerDataPayload)
+
+     const createUser = await prisma.user.create({
         data : {
-          name,
-          email,
-          password : hashedPasword,
-          avatar : cloudinaryResult.secure_url,
-          avatarPublicId : cloudinaryResult.public_id
+          name:userData.name,
+          email:userData.email,
+          password : userData.password,
+          avatar : userData.avatar,
+          avatarPublicId :userData.avatarPublicId,
+          emailVerified : true
         },
         omit : {
           password : true
@@ -91,7 +153,24 @@ const registerIntoDB = async(payload : IRegisterPayload,fileBuffer : Buffer) => 
     if(!createUser) {
        throw new Error("User create fail!")
     }
+    
+    await redisClient.del(registerPayloadKey)
 
+    const templatePath = path.join(process.cwd(),'src/app/templates/user-welcome-email')
+    const templateData = {
+      name ,
+      email,
+      dashboardUrl:`${config.frontend_url}/dashboard`
+    }
+
+    const html =await ejs.renderFile(templatePath,templateData)
+
+      await transporter.sendMail({
+         from: `TaskFlow <${config.smtp_sender}>`,
+         to: email,
+         subject: "Welcome to Project Managment Saas 🎉",
+         html
+      });
 
     const jwtPayload = {
        userId : createUser.id,
@@ -118,6 +197,7 @@ const registerIntoDB = async(payload : IRegisterPayload,fileBuffer : Buffer) => 
       createUser,
    }
    
+     
 }
  
 const userloginFromBD = async(payload : ILoginPayload) => {
@@ -130,6 +210,10 @@ const userloginFromBD = async(payload : ILoginPayload) => {
 
     if(!user) {
        throw new Error("User in not found!")
+    }
+
+    if(user.emailVerified === false){
+       throw new Error("Email is not verified!")
     }
 
     if(user.status === 'BLOCKED') {
@@ -175,5 +259,6 @@ const userloginFromBD = async(payload : ILoginPayload) => {
 
 export const AuthService = {
    registerIntoDB,
+   verifyEmail,
    userloginFromBD
 }
