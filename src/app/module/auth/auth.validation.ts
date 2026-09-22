@@ -1,4 +1,4 @@
-import z, { email } from "zod";
+import z, { email, string } from "zod";
 
 
 const ALLOWED_MULTI_TYPES = {
@@ -46,8 +46,10 @@ const registerZodSchema = z.object({
 })
 
 const verifyEmailZodSchema = z.object({
-   email :z.string().email({message: "Invalid email address"}),
-   otp : z.string()
+   body: z.object({
+      email :z.string().email({message: "Invalid email address"}),
+      otp : z.string()
+   })
 })
 
 const loginZodSchema = z.object({
@@ -64,10 +66,32 @@ const loginZodSchema = z.object({
     })
 })
 
+const forgetPasswordZodSchema =z.object( {
+    body:z.object({
+       email: z.string().email({message: "Invalid email address"})
+    })
+})
+const resetPasswordZodSchema =z.object({
+   body:z.object({
+       email: z.string().email({message: "Invalid email address"}),
+      newPassword : z.string()
+               .min(8,{message : "Password must be at least 8 characters long"})
+               .max(32,{message : "Password cannot exceed 32 characters"})
+               .regex(/[A-Z]/,{message : "Password must contain at least one uppercase letter"})
+               .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter" })
+					.regex(/[0-9]/, { message: "Password must contain at least one number" })
+              .regex(/[^a-zA-Z0-9]/,{ message: "Password must contain at least one special character" }),
+      
+      otp : string
 
 
+ 
+   })
+})
 export const AuthValidation = {
    registerZodSchema,
    verifyEmailZodSchema,
-   loginZodSchema
+   loginZodSchema,
+   forgetPasswordZodSchema,
+   resetPasswordZodSchema
 }

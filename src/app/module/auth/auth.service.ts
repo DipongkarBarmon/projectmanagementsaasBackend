@@ -1,16 +1,21 @@
 import bcrypt from "bcryptjs"
 import { prisma } from "../../lib/prisma"
-import { ILoginPayload, IRegisterPayload, IVerifyEmailPayload } from "./auth.interface"
+import { IForgetPasswordPayload, ILoginPayload, IRegisterPayload, IResetPasswordPayload, IVerifyEmailPayload } from "./auth.interface"
 import config from "../../config"
 import { uploadToCloudinary } from "../../lib/cloudinary"
 import { jwtUtiles } from "../../utils/jwt"
-import { SignOptions } from "jsonwebtoken"
+import { JwtPayload, SignOptions } from "jsonwebtoken"
 import crypto from 'crypto'
 import { redisClient } from "../../lib/redis"
 import path from "path"
 import ejs from 'ejs'
 import { transporter } from "../../lib/nodemailer"
 import { json } from "zod"
+import { platform } from "os"
+import status from "http-status"
+import { UserScalarFieldEnum } from "../../../../generated/prisma/internal/prismaNamespace"
+import { UserStatus } from "../../../../generated/prisma/enums"
+import { postMessageToThread } from "worker_threads"
 
 
 
@@ -253,12 +258,172 @@ const userloginFromBD = async(payload : ILoginPayload) => {
       accessToken,
       refreshToken,    
    }
-
-
 }
 
+
+const refreshToken = async (token: string) => {
+	const verifiedRefreshToken = jwtUtiles.varifyToken(
+		token,
+		config.jwt_refresh_secret,
+	);
+
+	if (!verifiedRefreshToken.success || !verifiedRefreshToken.data) {
+		throw new Error(
+			config.node_env === "development"
+				? verifiedRefreshToken.error
+				: "Invalid refresh token",
+		);
+	}
+
+	const data = verifiedRefreshToken.data as JwtPayload;
+
+	const user = await prisma.user.findUnique({
+		where: { id: data.userId },
+	});
+
+	if (!user || user.isDeleted || user.status !== UserStatus.ACTIVE) {
+		throw new Error("User is inactive or not found");
+	}
+
+	const jwtPayload = {
+		userId: user.id,
+		name: user.name,
+		email: user.email,
+		role: user.platformRole,
+	};
+
+	const accessToken = jwtUtiles.createToken(
+		jwtPayload,
+		config.jwt_access_secret,
+		config.jwt_access_expiration as SignOptions,
+	);
+
+	const refreshToken = jwtUtiles.createToken(
+		jwtPayload,
+		config.jwt_refresh_secret,
+		config.jwt_refresh_expiration as SignOptions,
+	);
+
+	return {
+		accessToken,
+		refreshToken,
+	};
+};
+
+
+const forgetPassword = async(payload : IForgetPasswordPayload)=>{
+   const email = payload.email.trim().toLowerCase()
+
+   const user = await prisma.user.findUnique({
+      where :{
+         email
+      }
+   })
+
+   if(!user ){
+      throw new Error("User is not found!")
+   }
+
+   if(user.status === UserStatus.BLOCKED){
+      throw new Error("User is Blocked!")
+   }
+
+   if(user.status === UserStatus.DELETED || user.isDeleted === true){
+       throw new Error("User is Deleted!")
+   }
+
+   const otp = crypto.randomInt(100000,1000000).toString()
+
+   const otpKey =`forget-password-otp:${email}`
+   const expiration=60*5
+   await redisClient.set(otpKey,otp,{
+       expiration : {
+         "type" :"EX",
+         "value":expiration
+       }
+   })
+
+   const templatePath = path.join(process.cwd(),'src/app/templates/forget-password-email')
+    const templateData = {
+      name :user.name ,
+      email,
+      otp,
+      expiresIn: expiration,
+    }
+
+    const html =await ejs.renderFile(templatePath,templateData)
+
+      await transporter.sendMail({
+         from: `Project Managment Saas <${config.smtp_sender}>`,
+         to: email,
+         subject: "Reset Your TaskFlow Password",
+         html,
+      });
+}
+
+const resetPassword =async(payload : IResetPasswordPayload)=>{
+    const email = payload.email.trim().toLowerCase()
+    const {newPassword,otp} = payload
+    const user = await prisma.user.findUnique({
+       where : {
+          email
+       }
+    })
+
+    if(!user) {
+       throw new Error("User is Not Found")
+    }
+    
+     const otpKey =`forget-password-otp:${email}`
+
+     const redisOtp = await redisClient.get(otpKey)
+
+     if(!redisOtp) {
+       throw new Error("Otp is Not Found in Redis")
+     }
+
+     if(otp!== redisOtp){
+       throw new Error("Otp is not Correct,Please provide correct otp")
+     }
+
+     const hashedPasword = await bcrypt.hash(newPassword,Number(config.bcrypt_salt_rounds))
+
+     const updateUser = await prisma.user.update({
+      where :{
+         email
+      },
+      data:{
+         password : hashedPasword
+      },
+      omit:{
+         password : true
+      }
+     })
+
+     await redisClient.del(otpKey)
+     const expiration=60*5
+     const templatePath = path.join(process.cwd(),'src/app/templates/forget-password-email')
+    const templateData = {
+      name : updateUser.name ,
+      expiresIn: expiration,
+    }
+
+    const html =await ejs.renderFile(templatePath,templateData)
+
+      await transporter.sendMail({
+         from: `Project Managment Saas <${config.smtp_sender}>`,
+         to: email,
+         subject: "Your TaskFlow Password Was Reset Successfully",
+         html,
+      });
+     
+    
+}
 export const AuthService = {
    registerIntoDB,
    verifyEmail,
-   userloginFromBD
+   userloginFromBD,
+   refreshToken,
+   forgetPassword,
+   resetPassword
 }

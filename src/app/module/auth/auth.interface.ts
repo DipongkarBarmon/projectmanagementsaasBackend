@@ -17,3 +17,13 @@ export interface ILoginPayload {
     email : string,
     passowrd: string
 }
+
+export interface IForgetPasswordPayload {
+     email : string
+}
+
+export interface IResetPasswordPayload {
+   email : string,
+   newPassword: string,
+   otp: string
+}

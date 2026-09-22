@@ -6,7 +6,12 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		 "includes": [
+      "**",
+      "!src/app/templates/**"
+    ]
+		
 	},
 	"formatter": {
 		"enabled": true,
@@ -32,9 +37,9 @@
 			},
 			"complexity" : {
 				 "useOptionalChain":"off"
-			}
-			 
-		} 
+			} 
+		} ,
+		"includes": ["!src/app/templates"]
 	},
 	"javascript": {
 		"formatter": {
