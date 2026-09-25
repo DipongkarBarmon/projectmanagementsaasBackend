@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs"
 import { prisma } from "../../lib/prisma"
-import { IForgetPasswordPayload, ILoginPayload, IRegisterPayload, IResetPasswordPayload, IVerifyEmailPayload } from "./auth.interface"
+import { IForgetPasswordPayload, IGoogleLoginPayload, ILoginPayload, IRegisterPayload, IResetPasswordPayload, IUser, IVerifyEmailPayload } from "./auth.interface"
 import config from "../../config"
 import { uploadToCloudinary } from "../../lib/cloudinary"
 import { jwtUtiles } from "../../utils/jwt"
@@ -10,12 +10,12 @@ import { redisClient } from "../../lib/redis"
 import path from "path"
 import ejs from 'ejs'
 import { transporter } from "../../lib/nodemailer"
-import { json } from "zod"
-import { platform } from "os"
-import status from "http-status"
-import { UserScalarFieldEnum } from "../../../../generated/prisma/internal/prismaNamespace"
-import { UserStatus } from "../../../../generated/prisma/enums"
-import { postMessageToThread } from "worker_threads"
+ 
+ 
+import { AuthProvider, UserStatus } from "../../../../generated/prisma/enums"
+
+import { googleClient } from "../../lib/googleOAuth"
+import { TokenPayload } from "google-auth-library"
 
 
 
@@ -82,7 +82,7 @@ const registerIntoDB = async(payload : IRegisterPayload,fileBuffer : Buffer) => 
     })
 
     
-    const templatePath =  path.join(process.cwd(),'src/app/templates/register-otp-email')
+    const templatePath = path.join( process.cwd(),'src/app/templates/register-otp-email.ejs');
     const templateData = {
        name,
        otp,
@@ -161,9 +161,9 @@ const verifyEmail = async(payload :IVerifyEmailPayload)=>{
     
     await redisClient.del(registerPayloadKey)
 
-    const templatePath = path.join(process.cwd(),'src/app/templates/user-welcome-email')
+    const templatePath = path.join(process.cwd(),'src/app/templates/user-welcome-email.ejs')
     const templateData = {
-      name ,
+      name:createUser.name ,
       email,
       dashboardUrl:`${config.frontend_url}/dashboard`
     }
@@ -199,14 +199,14 @@ const verifyEmail = async(payload :IVerifyEmailPayload)=>{
     return {
       accessToken,
       refreshToken,
-      createUser,
+         createUser,
    }
    
      
 }
  
 const userloginFromBD = async(payload : ILoginPayload) => {
-    const passowrd = payload.passowrd
+    const password = payload.password
     const email = payload.email.trim().toLowerCase()
     
     const user = await prisma.user.findFirst({
@@ -228,8 +228,15 @@ const userloginFromBD = async(payload : ILoginPayload) => {
     if(user.status === 'DELETED' || user.isDeleted === true) {
        throw new Error("User Id is deleted")
     }
+ 
 
-    const isPasswordMatched = bcrypt.compare(passowrd,user.password as string)
+    if(!user.password){
+      throw new Error(
+        "This account does not have password login enabled.Try with Google ,Facebook or others",
+      );
+    }
+
+    const isPasswordMatched =await bcrypt.compare(password,user.password as string)
 
     if(!isPasswordMatched) {
        throw new Error("Invalid credentials")
@@ -259,6 +266,164 @@ const userloginFromBD = async(payload : ILoginPayload) => {
       refreshToken,    
    }
 }
+
+
+const googleLogin = async(payload : IGoogleLoginPayload)=>{
+    let googleIdTokenPayload : TokenPayload |null |undefined=null 
+    try {
+       const Ticket = await googleClient.verifyIdToken({
+          idToken : payload.idToken,
+          audience : config.google_client_id
+       })
+       googleIdTokenPayload = Ticket.getPayload()  
+    } catch (error) {
+       throw new Error("Invalid Google id Token!")
+    }
+
+    if(!googleIdTokenPayload){
+      throw new Error("Invalid Google id Token!")
+    }
+
+     if(!googleIdTokenPayload.email){
+      throw new Error("Invalid Google user Email!")
+    }
+     if(!googleIdTokenPayload.name){
+      throw new Error("Invalid Google  user name!")
+    }
+
+    const isExistUser = await prisma.oAuthAccount.findUnique({
+      where:{ 
+         provider_providerAccountId :{
+          provider :AuthProvider.GOOGLE,
+          providerAccountId : googleIdTokenPayload.sub
+         }
+      }
+    })
+    
+   
+
+    if(!isExistUser) {
+       const cradentialUser  = await prisma.user.findUnique({
+          where : {
+             email : googleIdTokenPayload.email
+          }
+       })
+
+       if(cradentialUser) {
+         //  if(cradentialUser.emailVerified === false) {
+         //     throw new Error("User Email Not varified");
+         //  }
+          if(cradentialUser.status === UserStatus.BLOCKED){
+             throw new Error("User is Blocked");
+          }
+          if(cradentialUser.isDeleted === true || cradentialUser.status === UserStatus.DELETED){
+             throw new Error("User is Deleted");
+          }
+
+          await prisma.oAuthAccount.create({
+             data : {
+                userId : cradentialUser.id,
+                provider : AuthProvider.GOOGLE,
+                providerAccountId : googleIdTokenPayload.sub
+             }
+          })
+          await prisma.user.update({
+            where : {
+                id :cradentialUser.id
+            },
+            data:{
+               emailVerified : true
+            }
+          })
+       }
+       else {
+            const user= await prisma.user.create({
+             data :{
+                name : googleIdTokenPayload.name,
+                email : googleIdTokenPayload.email,
+                emailVerified : true,
+             }
+          })
+
+           await prisma.oAuthAccount.create({
+            data :{
+               userId: user.id,
+               provider : AuthProvider.GOOGLE,
+               providerAccountId:googleIdTokenPayload.sub
+            }
+          })
+       }
+
+    }
+     
+    const {name,email} =googleIdTokenPayload
+
+    const templatePath = path.join(process.cwd(),'src/app/templates/user-welcome-email.ejs')
+    const templateData = {
+       name ,
+      email,
+      dashboardUrl:`${config.frontend_url}/dashboard`
+    }
+
+    const html =await ejs.renderFile(templatePath,templateData)
+
+      await transporter.sendMail({
+         from: `TaskFlow <${config.smtp_sender}>`,
+         to: email,
+         subject: "Welcome to Project Managment Saas 🎉",
+         html
+      });
+
+      const newuser = await prisma.user.findUnique({
+         where :{
+            email
+         }
+      })
+
+      if(!newuser) {
+         throw new Error("User is not found")
+      }
+
+      const authAccount = await prisma.oAuthAccount.findMany({
+          where:{
+            userId : newuser.id
+          }
+      })
+
+      if(!authAccount) {
+          throw new Error("User AuthAccount Not Found")
+      }
+
+    const jwtPayload = {
+       userId : newuser.id,
+       neme :  newuser.name,
+       email : newuser.email,
+       role : newuser.platformRole
+    }
+
+    const accessToken = jwtUtiles.createToken(
+      jwtPayload,
+      config.jwt_access_secret,
+      config.jwt_access_expiration as SignOptions
+    )
+
+    const refreshToken = jwtUtiles.createToken(
+      jwtPayload,
+      config.jwt_access_secret,
+      config.jwt_access_expiration as SignOptions
+    )
+
+    return {
+      accessToken,
+      refreshToken,
+      createUser: newuser,
+      authAccount
+   }
+   
+
+
+}
+
 
 
 const refreshToken = async (token: string) => {
@@ -343,12 +508,12 @@ const forgetPassword = async(payload : IForgetPasswordPayload)=>{
        }
    })
 
-   const templatePath = path.join(process.cwd(),'src/app/templates/forget-password-email')
+   const templatePath = path.join(process.cwd(),'src/app/templates/forget-password-otp.ejs')
     const templateData = {
       name :user.name ,
       email,
       otp,
-      expiresIn: expiration,
+      expiresIn: expiration/60,
     }
 
     const html =await ejs.renderFile(templatePath,templateData)
@@ -366,7 +531,7 @@ const resetPassword =async(payload : IResetPasswordPayload)=>{
     const {newPassword,otp} = payload
     const user = await prisma.user.findUnique({
        where : {
-          email
+          email 
        }
     })
 
@@ -387,7 +552,8 @@ const resetPassword =async(payload : IResetPasswordPayload)=>{
      }
 
      const hashedPasword = await bcrypt.hash(newPassword,Number(config.bcrypt_salt_rounds))
-
+   //   console.log(newPassword)
+     console.log(hashedPasword)
      const updateUser = await prisma.user.update({
       where :{
          email
@@ -395,17 +561,12 @@ const resetPassword =async(payload : IResetPasswordPayload)=>{
       data:{
          password : hashedPasword
       },
-      omit:{
-         password : true
-      }
      })
 
      await redisClient.del(otpKey)
-     const expiration=60*5
-     const templatePath = path.join(process.cwd(),'src/app/templates/forget-password-email')
+     const templatePath = path.join(process.cwd(),'src/app/templates/reset-password-email.ejs')
     const templateData = {
-      name : updateUser.name ,
-      expiresIn: expiration,
+      name : updateUser.name
     }
 
     const html =await ejs.renderFile(templatePath,templateData)
@@ -423,6 +584,7 @@ export const AuthService = {
    registerIntoDB,
    verifyEmail,
    userloginFromBD,
+   googleLogin,
    refreshToken,
    forgetPassword,
    resetPassword

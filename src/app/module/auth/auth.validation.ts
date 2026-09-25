@@ -73,7 +73,7 @@ const forgetPasswordZodSchema =z.object( {
 })
 const resetPasswordZodSchema =z.object({
    body:z.object({
-       email: z.string().email({message: "Invalid email address"}),
+      email: z.string().email({message: "Invalid email address"}),
       newPassword : z.string()
                .min(8,{message : "Password must be at least 8 characters long"})
                .max(32,{message : "Password cannot exceed 32 characters"})
@@ -82,10 +82,7 @@ const resetPasswordZodSchema =z.object({
 					.regex(/[0-9]/, { message: "Password must contain at least one number" })
               .regex(/[^a-zA-Z0-9]/,{ message: "Password must contain at least one special character" }),
       
-      otp : string
-
-
- 
+      otp : z.string()
    })
 })
 export const AuthValidation = {

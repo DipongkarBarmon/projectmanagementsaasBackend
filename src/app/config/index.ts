@@ -22,7 +22,9 @@ const config = {
   jwt_refresh_expiration : process.env.JWT_REFRESH_EXPIRATION!,
   smtp_user : process.env.SMTP_USER!,
   smtp_sender : process.env.SMTP_SENDER!,
-  smtp_password : process.env.SMTP_PASSWORD!
+  smtp_password : process.env.SMTP_PASSWORD!,
+  google_client_id :process.env.GOOGLE_CLIENT_ID
+
 }
 export default config
 

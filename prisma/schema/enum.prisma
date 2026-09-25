@@ -14,3 +14,10 @@ enum UserStatus {
   BLOCKED
   DELETED
 }
+
+enum AuthProvider {
+  CREDENTIALS
+  GOOGLE
+  GITHUB
+  FACEBOOK
+}

@@ -1,10 +1,11 @@
- 
+```ejs
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Your Email - Project Managment SaaS</title>
+  <title>Verify Your Email - Project Management SaaS</title>
 </head>
 
 <body style="
@@ -90,7 +91,7 @@
                 color: #0f172a;
                 font-size: 22px;
               ">
-                Welcome, ${name}!
+                Welcome, <%= name %>!
               </h2>
 
               <p style="
@@ -122,14 +123,16 @@
                       border-radius: 12px;
                       padding: 18px 36px;
                     ">
+
                       <span style="
                         font-size: 32px;
                         font-weight: 700;
                         letter-spacing: 8px;
                         color: #4f46e5;
                       ">
-                        ${otp}
+                        <%= otp %>
                       </span>
+
                     </div>
 
                   </td>
@@ -144,7 +147,7 @@
                 font-size: 14px;
                 font-weight: 600;
               ">
-                This OTP will expire in ${expiresIn}.
+                This OTP will expire in <%= expiresIn %> minutes.
               </p>
 
               <!-- Security Notice -->
@@ -162,31 +165,38 @@
                     border-radius: 8px;
                     padding: 18px;
                   ">
+
                     <p style="
                       margin: 0;
                       color: #475569;
                       font-size: 14px;
                       line-height: 1.6;
                     ">
+
                       <strong style="color: #0f172a;">
                         Security Notice
                       </strong>
+
                       <br>
+
                       Never share this OTP with anyone.
                       Our team will never ask you for your OTP
                       or password.
+
                     </p>
+
                   </td>
                 </tr>
               </table>
 
+              <!-- Ignore Notice -->
               <p style="
                 margin: 25px 0 0;
                 color: #64748b;
                 font-size: 14px;
                 line-height: 1.6;
               ">
-                If you did not create a Project Managment SaaS account,
+                If you did not create a Project Management SaaS account,
                 you can safely ignore this email.
               </p>
 
@@ -232,7 +242,7 @@
                 color: #94a3b8;
                 font-size: 12px;
               ">
-                &copy; 2026 Project Managment SaaS. All rights reserved.
+                &copy; 2026 Project Management SaaS. All rights reserved.
               </p>
 
             </td>
@@ -245,4 +255,42 @@
   </table>
 
 </body>
+
 </html>
+```
+
+**File location:**
+
+```text
+src/app/templates/register-otp-email.ejs
+```
+
+আর তোমার `auth.service.ts`-এ:
+
+```ts
+const templatePath = path.join(
+  process.cwd(),
+  "src/app/templates/register-otp-email.ejs"
+);
+
+const templateData = {
+  name,
+  otp,
+  expiresIn: expiration / 60,
+};
+
+const html = await ejs.renderFile(
+  templatePath,
+  templateData
+);
+```
+
+এখানে EJS-এর তিনটি variable:
+
+```ejs
+<%= name %>
+<%= otp %>
+<%= expiresIn %>
+```
+
+ 
