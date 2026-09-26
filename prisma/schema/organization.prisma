@@ -3,20 +3,19 @@ model Organization {
   name        String
   slug        String @unique
   logo        String?
+  logoPublicId String?
   description String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  deletedAt   DateTime?
   members OrganizationMember[]
-  // invitations Invitation[]
 
-  // teams Team[]
-  // projects Project[]
+  invitations Invitation[]
 
-  // labels Label[]
+  teams Team[]
 
-  // activities Activity[]
+  projects Project[]
 
-  // subscription Subscription?
+  labels Label[]
 }

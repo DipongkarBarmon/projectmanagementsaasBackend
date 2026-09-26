@@ -6,6 +6,7 @@ import { notFound } from './app/middleware/notFound'
 import { AuthRouter } from './app/module/auth/auth.route'
 import cookieParser from 'cookie-parser'
 import config from './app/config'
+import { OrganizationRouter } from './app/module/organization/organization.route'
 
 const app  : Application=express()
 app.use(
@@ -25,7 +26,7 @@ app.get('/',(req : Request, res : Response)=>{
 })
 
 app.use('/api/v1/auth',AuthRouter)
-
+app.use('/api/v1/organizations',OrganizationRouter)
 app.use(notFound)
 app.use(globalErrorHandler)
 

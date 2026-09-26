@@ -1,0 +1,20 @@
+model Label {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+
+  name  String
+  color String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("labels")
+  taskLabels TaskLabel[]
+}
+
+ 

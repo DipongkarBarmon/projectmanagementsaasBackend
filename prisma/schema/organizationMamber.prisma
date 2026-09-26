@@ -3,7 +3,7 @@ model OrganizationMember {
   organizationId String @db.Uuid
   userId         String @db.Uuid
 
-  role OrganizationRole @default(MEMBER)
+  organizationRole OrganizationRole @default(MEMBER)
 
   joinedAt DateTime @default(now())
   
@@ -14,5 +14,5 @@ model OrganizationMember {
   @@unique([organizationId, userId])
   @@index([organizationId])
   @@index([userId])
-  @@index([organizationId, role])
+  @@index([organizationId, organizationRole])
 }

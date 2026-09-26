@@ -18,4 +18,13 @@ model User {
   memberships OrganizationMember[]
  
   @@index([email])
+  invitations Invitation[]
+  teamMembers TeamMember[]
+  teams Team[]
+  projects Project[]
+  projectMembers ProjectMember[]
+  sprints Sprint[]
+   
+  tasks Task[] @relation("TaskAssignee")
+  taskcreators Task[] @relation("TaskCreator")
 }

@@ -56,3 +56,14 @@ export const uploadToCloudinary = (fileBuffer :Buffer, folderName : string ='upl
 }
 
 
+
+export const deleteFromCloudinary = async(publicId : string) => {
+    try {
+        const result = await cloudinary.uploader.destroy(publicId);
+        if (result.result !== 'ok') {
+            throw new Error(`Failed to delete image with public ID: ${publicId}`);
+        }
+    } catch (error : any) {
+        throw new Error(`Error deleting image from Cloudinary: ${error.message}`);
+    }
+}; 

@@ -66,7 +66,7 @@ export const auth = (options: AuthOptions ={}) => {
 				id: userId,
 				email,
 				name,
-				role,
+				platformRole: role,
 			},
 		});
 
@@ -102,7 +102,7 @@ export const auth = (options: AuthOptions ={}) => {
 					throw new Error("You are not a member of this organization")
 				}
 
-				organizationRole = membership.role
+				organizationRole = membership.organizationRole
 
 				if(!options.organizationRoles.includes(organizationRole)){
 					 throw new Error(
