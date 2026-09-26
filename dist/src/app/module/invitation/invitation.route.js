@@ -1,0 +1,11 @@
+import Router from "express";
+import { InvitationController } from "./invitation.controller";
+import { OrganizationRole } from "../../../../generated/prisma/enums";
+import { auth } from "../../middleware/checkAuth";
+import { validationRequest } from "../../middleware/validationRequest";
+import { InvitationValidation } from "./invitation.validation";
+const router = Router();
+router.post("/:organizationId/send-invitation", auth({ organizationRoles: [OrganizationRole.ORG_ADMIN] }), validationRequest(InvitationValidation.sentInvitationZodSchema), InvitationController.sentInvitations);
+router.get("/:token", InvitationController.getInvitationByToken);
+router.post("/:token/accept", auth(), InvitationController.acceptInvitation);
+export const InvitationRouter = router;
