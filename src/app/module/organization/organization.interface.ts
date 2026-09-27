@@ -20,5 +20,8 @@ export interface IOrganizationQuery extends OrganizationWhereInput  {
     page ? : string,
     limit? : string,
     sortOrder? : string,
-    sortBy? : string
+    sortBy? : string,
+    name? : string,
+    slug? : string,
+    description? : string
 }

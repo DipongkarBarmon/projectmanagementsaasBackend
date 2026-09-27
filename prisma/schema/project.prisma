@@ -3,7 +3,7 @@ model Project {
   organizationId String        @db.Uuid
 
   name           String
-  slug           String
+  slug           String        
   description    String?
 
   status         ProjectStatus  @default(PLANNING)
@@ -20,13 +20,14 @@ model Project {
   organization Organization @relation(fields: [organizationId], references: [id])
   createdBy User @relation(fields: [createdById], references: [id])
  
+  projectMembers ProjectMember[]
+  sprints Sprint[]
+  tasks Task[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
   @@index([status])
   @@index([createdById])
   @@map("projects")
-  projectMembers ProjectMember[]
-  sprints Sprint[]
-  tasks Task[]
+
 }

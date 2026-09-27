@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser';
 import config from './app/config';
 import { InvitationRouter } from './app/module/invitation/invitation.route';
 import { OrganizationRouter } from './app/module/organization/organization.route';
+import { ProjectRouter } from './app/module/project/project.route';
 const app = express();
 app.use(cors({
     origin: config.frontend_url,
@@ -22,6 +23,7 @@ app.get('/', (req, res) => {
 app.use('/api/v1/auth', AuthRouter);
 app.use('/api/v1/invitations', InvitationRouter);
 app.use('/api/v1/organizations', OrganizationRouter);
+app.use('/api/v1/organizations', ProjectRouter);
 app.use(notFound);
 app.use(globalErrorHandler);
 export default app;

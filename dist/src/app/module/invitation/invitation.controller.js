@@ -11,7 +11,7 @@ const sentInvitations = catchAsync(async (req, res, next) => {
         success: true,
         statusCode: httpStatus.CREATED,
         message: "Invitation sent successfully!",
-        data: null
+        data: result
     });
 });
 const getInvitationByToken = catchAsync(async (req, res) => {
@@ -32,8 +32,52 @@ const acceptInvitation = catchAsync(async (req, res) => {
         data: result,
     });
 });
+const getAllInvitations = catchAsync(async (req, res) => {
+    const query = req.query;
+    const result = await InvitationService.getAllInvitations(query);
+    sendResponse(res, {
+        success: true,
+        statusCode: httpStatus.OK,
+        message: "All invitations fetched successfully",
+        data: result,
+    });
+});
+const getInvitationById = catchAsync(async (req, res) => {
+    const invitationId = req.params.invitationId;
+    const result = await InvitationService.getInvitationById(invitationId);
+    sendResponse(res, {
+        success: true,
+        statusCode: httpStatus.OK,
+        message: "Invitation fetched successfully",
+        data: result,
+    });
+});
+const cencelInvitation = catchAsync(async (req, res) => {
+    const invitationId = req.params.invitationId;
+    const result = await InvitationService.cencelInvitation(invitationId);
+    sendResponse(res, {
+        success: true,
+        statusCode: httpStatus.OK,
+        message: "Invitation cancelled successfully",
+        data: result,
+    });
+});
+const deleteInvitation = catchAsync(async (req, res) => {
+    const invitationId = req.params.invitationId;
+    const result = await InvitationService.deleteInvitation(invitationId);
+    sendResponse(res, {
+        success: true,
+        statusCode: httpStatus.OK,
+        message: "Invitation deleted successfully",
+        data: result,
+    });
+});
 export const InvitationController = {
     sentInvitations,
     getInvitationByToken,
-    acceptInvitation
+    acceptInvitation,
+    getAllInvitations,
+    getInvitationById,
+    cencelInvitation,
+    deleteInvitation
 };

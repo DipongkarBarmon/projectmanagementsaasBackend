@@ -5,6 +5,7 @@ import ejs from "ejs";
 import { transporter } from "../../lib/nodemailer";
 import config from "../../config";
 import { InvitationStatus } from "../../../../generated/prisma/enums";
+const hashInvitationToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 const sentInvitations = async (payload, organizationId, userId) => {
     if (!payload.email || !payload.organizationRole) {
         throw new Error("Email and organization role are required");
@@ -44,7 +45,7 @@ const sentInvitations = async (payload, organizationId, userId) => {
     // Here you can implement the logic to send the invitation, e.g., save it to the database, send an email, etc.
     const token = crypto.randomBytes(32).toString("hex");
     console.log("Generated token:", token);
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const tokenHash = hashInvitationToken(token);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000 * 7); // 24 hours from now
     const invitation = await prisma.invitation.create({
         data: {
@@ -71,6 +72,7 @@ const sentInvitations = async (payload, organizationId, userId) => {
     const templateData = {
         organizationName: organization.name,
         invitedByName: invitatedUser.name,
+        roleName: payload.organizationRole,
         invitationUrl: `${config.frontend_url}/invitation/accept/${token}`,
         expiresAt,
         year: new Date().getFullYear(),
@@ -83,13 +85,14 @@ const sentInvitations = async (payload, organizationId, userId) => {
         html
     });
 };
-const hashInvitationToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 const getInvitationByToken = async (token) => {
     if (!token) {
         throw new Error("Invitation token is required");
     }
     const invitation = await prisma.invitation.findUnique({
-        where: { token: hashInvitationToken(token) },
+        where: {
+            token: hashInvitationToken(token)
+        },
         include: {
             organization: {
                 select: {
@@ -114,8 +117,12 @@ const getInvitationByToken = async (token) => {
     }
     if (invitation.expiresAt < new Date()) {
         await prisma.invitation.update({
-            where: { id: invitation.id },
-            data: { status: InvitationStatus.EXPIRED },
+            where: {
+                id: invitation.id
+            },
+            data: {
+                status: InvitationStatus.EXPIRED
+            },
         });
         throw new Error("Invitation expired");
     }
@@ -133,7 +140,9 @@ const acceptInvitation = async (token, userId) => {
         throw new Error("User ID is required");
     }
     const invitation = await prisma.invitation.findUnique({
-        where: { token: hashInvitationToken(token) },
+        where: {
+            token: hashInvitationToken(token)
+        },
     });
     if (!invitation) {
         throw new Error("Invalid invitation");
@@ -145,7 +154,9 @@ const acceptInvitation = async (token, userId) => {
         throw new Error("Invitation expired");
     }
     const user = await prisma.user.findUnique({
-        where: { id: userId },
+        where: {
+            id: userId
+        },
     });
     if (!user) {
         throw new Error("User not found");
@@ -153,8 +164,8 @@ const acceptInvitation = async (token, userId) => {
     if (user.email.toLowerCase() !== invitation.email.toLowerCase()) {
         throw new Error("This invitation belongs to a different email address");
     }
-    const result = await prisma.$transaction(async (transaction) => {
-        const membership = await transaction.organizationMember.upsert({
+    const result = await prisma.$transaction(async (tx) => {
+        const membership = await tx.organizationMember.upsert({
             where: {
                 organizationId_userId: {
                     organizationId: invitation.organizationId,
@@ -170,7 +181,7 @@ const acceptInvitation = async (token, userId) => {
                 organizationRole: invitation.organizationRole,
             },
         });
-        await transaction.invitation.update({
+        await tx.invitation.update({
             where: { id: invitation.id },
             data: {
                 status: InvitationStatus.ACCEPTED,
@@ -181,8 +192,141 @@ const acceptInvitation = async (token, userId) => {
     });
     return result;
 };
+const getAllInvitations = async (query) => {
+    const limit = query.limit ? Number(query.limit) : 10;
+    const page = query.page ? Number(query.page) : 1;
+    const skip = (page - 1) * limit;
+    const sortBy = query.sortBy ? query.sortBy : "createdAt";
+    const sortOrder = query.sortOrder ? query.sortOrder : "desc";
+    const addConditions = [];
+    if (query.searchTerm) {
+        addConditions.push({
+            OR: [
+                {
+                    email: {
+                        contains: query.searchTerm,
+                        mode: "insensitive"
+                    }
+                }
+            ]
+        });
+    }
+    if (query.email) {
+        addConditions.push({
+            email: query.email,
+        });
+    }
+    if (query.organizationRole) {
+        addConditions.push({
+            organizationRole: {
+                equals: query.organizationRole,
+            },
+        });
+    }
+    if (query.status) {
+        addConditions.push({
+            status: {
+                equals: query.status,
+            },
+        });
+    }
+    if (query.acceptedAt) {
+        addConditions.push({
+            acceptedAt: {
+                gte: query.acceptedAt,
+            },
+        });
+    }
+    if (query.expiresAt) {
+        addConditions.push({
+            expiresAt: {
+                gte: query.expiresAt,
+            },
+        });
+    }
+    const invitations = await prisma.invitation.findMany({
+        where: {
+            AND: addConditions
+        },
+        skip,
+        take: limit,
+        orderBy: {
+            [sortBy]: sortOrder
+        }
+    });
+    return invitations;
+};
+const getInvitationById = async (invitationId) => {
+    if (!invitationId) {
+        throw new Error("Invitation ID is required");
+    }
+    const invitation = await prisma.invitation.findUnique({
+        where: {
+            id: invitationId
+        },
+        include: {
+            organization: {
+                select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    logo: true,
+                },
+            },
+            invitedBy: {
+                select: {
+                    name: true,
+                },
+            },
+        },
+    });
+    if (!invitation) {
+        throw new Error("Invitation not found");
+    }
+    return invitation;
+};
+const cencelInvitation = async (invitationId) => {
+    if (!invitationId) {
+        throw new Error("Invitation ID is required");
+    }
+    const invitation = await prisma.invitation.findUnique({
+        where: {
+            id: invitationId
+        }
+    });
+    if (!invitation) {
+        throw new Error("Invitation not found");
+    }
+    if (invitation.status !== InvitationStatus.PENDING) {
+        throw new Error(`Invitation is ${invitation.status.toLowerCase()}`);
+    }
+    const updatedInvitation = await prisma.invitation.update({
+        where: {
+            id: invitationId
+        },
+        data: {
+            status: InvitationStatus.CANCELLED,
+        },
+    });
+    return updatedInvitation;
+};
+const deleteInvitation = async (invitationId) => {
+    if (!invitationId) {
+        throw new Error("Invitation ID is required");
+    }
+    const invitation = await prisma.invitation.delete({
+        where: {
+            id: invitationId
+        }
+    });
+    return invitation;
+};
 export const InvitationService = {
     sentInvitations,
     getInvitationByToken,
-    acceptInvitation
+    acceptInvitation,
+    getAllInvitations,
+    getInvitationById,
+    cencelInvitation,
+    deleteInvitation
 };
