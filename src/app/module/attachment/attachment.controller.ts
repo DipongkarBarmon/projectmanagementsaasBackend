@@ -4,9 +4,12 @@ import { sendResponse } from "../../utils/sendResponse";
 import { AttachmentService } from "./attachment.service";
 import httpStatus from "http-status";
 
-const uploadAttachment = catchAsync(async (req: Request, res: Response) => {
-  const result = await AttachmentService.uploadAttachment(req.params.taskId as string, req.body, req.user!, req.params.organizationId as string);
-  sendResponse(res, { success: true, statusCode: httpStatus.CREATED, message: "Attachment uploaded successfully", data: result });
+const uploadAttachments = catchAsync(async (req: Request, res: Response) => {
+  if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+    throw new Error("Files are required");
+  }
+  const result = await AttachmentService.uploadAttachments(req.params.taskId as string, req.files as Express.Multer.File[], req.user!, req.params.organizationId as string);
+  sendResponse(res, { success: true, statusCode: httpStatus.CREATED, message: "Attachments uploaded successfully", data: result });
 });
 
 const getAttachments = catchAsync(async (req: Request, res: Response) => {
@@ -20,7 +23,7 @@ const deleteAttachment = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const AttachmentController = {
-  uploadAttachment,
+  uploadAttachments,
   getAttachments,
   deleteAttachment
 };

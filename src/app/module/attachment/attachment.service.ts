@@ -2,9 +2,13 @@ import { prisma } from "../../lib/prisma";
 import { RequestUser } from "../../middleware/checkAuth";
 import { OrganizationRole, ActivityAction } from "../../../../generated/prisma/enums";
 import { ActivityService } from "../activity/activity.service";
-import { ICreateAttachmentPayload } from "./attachment.interface";
+import { uploadToCloudinary, deleteFromCloudinary } from "../../utils/cloudinary";
 
 export class AttachmentService {
+  /**
+   * Verify if the user has view/upload access to the task's attachments.
+   * Enforces: Task access -> Project access -> Organization membership
+   */
   private static async verifyTaskAccess(taskId: string, organizationId: string, user: RequestUser) {
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -18,50 +22,55 @@ export class AttachmentService {
 
     const isOrgAdmin = user.organizationRole === OrganizationRole.ORG_ADMIN;
     
-    let isProjectManager = false;
-    if (user.organizationRole === OrganizationRole.PROJECT_MANAGER) {
-       const membership = await prisma.projectMember.findUnique({
-         where: { projectId_userId: { projectId: task.projectId, userId: user.userId } }
-       });
-       if (membership) {
-          isProjectManager = true;
-       }
-    }
-
-    if (!isOrgAdmin && !isProjectManager) {
-      const membership = await prisma.projectMember.findUnique({
-        where: { projectId_userId: { projectId: task.projectId, userId: user.userId } }
-      });
-      if (!membership) {
-        throw new Error("You do not have access to this project's tasks");
-      }
-    }
-
-    return { task, isOrgAdmin, isProjectManager };
-  }
-
-  static async uploadAttachment(taskId: string, payload: ICreateAttachmentPayload, user: RequestUser, organizationId: string) {
-    await this.verifyTaskAccess(taskId, organizationId, user);
-
-    const attachment = await prisma.attachment.create({
-      data: {
-        ...payload,
-        taskId,
-        organizationId,
-        uploadedById: user.userId,
-      }
+    // Check if user has access to the project
+    const projectMembership = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId: task.projectId, userId: user.userId } }
     });
 
+    if (!isOrgAdmin && !projectMembership) {
+      throw new Error("You do not have access to this project's tasks");
+    }
+
+    const isProjectManager = user.organizationRole === OrganizationRole.PROJECT_MANAGER && !!projectMembership;
+    const isTeamLead = user.organizationRole === OrganizationRole.TEAM_LEAD;
+
+    return { task, isOrgAdmin, isProjectManager, isTeamLead };
+  }
+
+  static async uploadAttachments(taskId: string, files: Express.Multer.File[], user: RequestUser, organizationId: string) {
+    await this.verifyTaskAccess(taskId, organizationId, user);
+
+    const attachments = await Promise.all(
+      files.map(async (file) => {
+        const cloudinaryResult = await uploadToCloudinary(file.buffer);
+        
+        return prisma.attachment.create({
+          data: {
+            originalName: file.originalname,
+            fileName: cloudinaryResult.original_filename || file.originalname,
+            mimeType: file.mimetype,
+            size: file.size,
+            url: cloudinaryResult.secure_url,
+            storageKey: cloudinaryResult.public_id,
+            taskId,
+            organizationId,
+            uploadedById: user.userId,
+          }
+        });
+      })
+    );
+
+    const fileNames = attachments.map(a => a.originalName).join(", ");
     await ActivityService.createActivity({
       organizationId,
       actorId: user.userId,
-      action: ActivityAction.UPDATED,
+      action: ActivityAction.ATTACHED,
       entityType: "TASK",
       entityId: taskId,
-      description: `Uploaded attachment ${attachment.originalName}`,
+      description: `Uploaded attachments: ${fileNames}`,
     });
 
-    return attachment;
+    return attachments;
   }
 
   static async getAttachments(taskId: string, user: RequestUser, organizationId: string) {
@@ -83,19 +92,50 @@ export class AttachmentService {
 
     if (!attachment) throw new Error("Attachment not found");
 
-    const { isOrgAdmin, isProjectManager } = await this.verifyTaskAccess(attachment.taskId, organizationId, user);
+    const { isOrgAdmin, isProjectManager, isTeamLead } = await this.verifyTaskAccess(attachment.taskId, organizationId, user);
 
-    const canDelete = attachment.uploadedById === user.userId || isOrgAdmin || isProjectManager;
+    let canDelete = false;
+
+    if (attachment.uploadedById === user.userId) {
+      canDelete = true;
+    } else if (isOrgAdmin) {
+      canDelete = true;
+    } else if (isProjectManager) {
+      canDelete = true;
+    } else if (isTeamLead) {
+      // Check if the current user is the teamLead of any team that the uploader is a member of.
+      const uploaderTeams = await prisma.teamMember.findMany({
+        where: { userId: attachment.uploadedById },
+        include: { team: true }
+      });
+      
+      const leadsUploaderTeam = uploaderTeams.some(tm => tm.team.teamLeadId === user.userId);
+      if (leadsUploaderTeam) {
+        canDelete = true;
+      }
+    }
 
     if (!canDelete) {
       throw new Error("You do not have permission to delete this attachment");
     }
 
-    // Call Cloudinary delete here if we had the SDK integrated
-    // await CloudinaryService.delete(attachment.storageKey);
+    if (attachment.storageKey) {
+      await deleteFromCloudinary(attachment.storageKey);
+    }
 
-    return await prisma.attachment.delete({
+    const deleted = await prisma.attachment.delete({
       where: { id: attachmentId }
     });
+    
+    await ActivityService.createActivity({
+      organizationId,
+      actorId: user.userId,
+      action: ActivityAction.DETACHED,
+      entityType: "TASK",
+      entityId: attachment.taskId,
+      description: `Deleted attachment ${attachment.originalName}`,
+    });
+    
+    return deleted;
   }
 }
