@@ -26,7 +26,7 @@ const getAllTeams = catchAsync(async (req: Request, res: Response,next:NextFunct
      data: result });
 });
 
-const getTeamById = catchAsync(async (req: Request, res: Response) => {
+const getTeamById = catchAsync(async (req: Request, res: Response,next: NextFunction) => {
   const result = await TeamService.getTeamById(req.params.teamId as string, req.user!, req.params.organizationId as string);
   sendResponse(res, { 
     success: true,
@@ -36,7 +36,7 @@ const getTeamById = catchAsync(async (req: Request, res: Response) => {
       });
 });
 
-const updateTeam = catchAsync(async (req: Request, res: Response) => {
+const updateTeam = catchAsync(async (req: Request, res: Response,next: NextFunction) => {
   const result = await TeamService.updateTeam(req.params.teamId as string, req.body, req.user!, req.params.organizationId as string);
   sendResponse(res, {
      success: true, 
@@ -46,7 +46,7 @@ const updateTeam = catchAsync(async (req: Request, res: Response) => {
       });
 });
 
-const deleteTeam = catchAsync(async (req: Request, res: Response) => {
+const deleteTeam = catchAsync(async (req: Request, res: Response,next: NextFunction) => {
   const result = await TeamService.deleteTeam(req.params.teamId as string, req.user!, req.params.organizationId as string);
   sendResponse(res, {
      success: true,
@@ -55,7 +55,7 @@ const deleteTeam = catchAsync(async (req: Request, res: Response) => {
         data: result });
 });
 
-const addTeamMember = catchAsync(async (req: Request, res: Response) => {
+const addTeamMember = catchAsync(async (req: Request, res: Response,next: NextFunction) => {
   const result = await TeamService.addTeamMember(req.params.teamId as string, req.body, req.user!, req.params.organizationId as string);
   sendResponse(res, { 
     success: true,
@@ -65,7 +65,7 @@ const addTeamMember = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
-const removeTeamMember = catchAsync(async (req: Request, res: Response) => {
+const removeTeamMember = catchAsync(async (req: Request, res: Response,next: NextFunction) => {
   const result = await TeamService.removeTeamMember(req.params.teamId as string, req.params.userId as string, req.user!, req.params.organizationId as string);
   sendResponse(res, { 
     success: true,
@@ -75,7 +75,7 @@ const removeTeamMember = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
-const assignTeamLead = catchAsync(async (req: Request, res: Response) => {
+const assignTeamLead = catchAsync(async (req: Request, res: Response,next: NextFunction) => {
   const result = await TeamService.assignTeamLead(req.params.teamId as string, req.body, req.user!, req.params.organizationId as string);
   sendResponse(res, { 
     success: true,
@@ -85,6 +85,15 @@ const assignTeamLead = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
+const viewTeamMembers = catchAsync(async (req: Request, res: Response,next: NextFunction) => {
+  const result = await TeamService.viewTeamMembers(req.params.teamId as string, req.params.organizationId as string);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Team members retrieved successfully",
+    data: result
+  });
+}); 
 export const TeamController = {
   createTeam,
   getAllTeams,
@@ -93,5 +102,6 @@ export const TeamController = {
   deleteTeam,
   addTeamMember,
   removeTeamMember,
-  assignTeamLead
+  assignTeamLead,
+  viewTeamMembers
 };

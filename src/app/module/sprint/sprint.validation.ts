@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { SprintStatus } from "../../../../generated/prisma/enums";
 
-export const createSprintSchema = z.object({
+ const createSprintZodSchema = z.object({
   body: z.object({
     name: z.string().min(1, "Name must be at least 1 character").max(255),
     goal: z.string().max(1000).optional(),
@@ -10,7 +10,7 @@ export const createSprintSchema = z.object({
   }),
 });
 
-export const updateSprintSchema = z.object({
+const updateSprintZodSchema = z.object({
   body: z.object({
     name: z.string().min(1).max(255).optional(),
     goal: z.string().max(1000).optional(),
@@ -19,3 +19,9 @@ export const updateSprintSchema = z.object({
     status: z.nativeEnum(SprintStatus).optional(),
   }),
 });
+
+
+export const SprintValidation = {
+     createSprintZodSchema,
+      updateSprintZodSchema
+};

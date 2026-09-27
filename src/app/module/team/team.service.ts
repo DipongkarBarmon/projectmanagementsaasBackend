@@ -437,6 +437,41 @@ const getAllTeams = async (query: IGetAllTeamsPayload, user: RequestUser, organi
     
     return existingMember;
   } 
+
+  const viewTeamMembers = async (teamId: string, organizationId: string) => {
+    if (!teamId || !organizationId) {
+      throw new Error("Team ID and Organization ID are required");
+    }
+    const existingOrganization = await prisma.organization.findUnique({
+      where: { id: organizationId }
+    });
+
+    if (!existingOrganization) {
+      throw new Error("Organization not found");
+    } 
+    const team = await prisma.team.findUnique({
+      where: { id: teamId, organizationId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!team) throw new Error("Team not found");
+
+     
+
+    return team.members.map(member => member.user);
+  } 
   
  export const TeamService = {
     createTeam,
@@ -446,7 +481,8 @@ const getAllTeams = async (query: IGetAllTeamsPayload, user: RequestUser, organi
     deleteTeam,
     assignTeamLead,
     addTeamMember,
-    removeTeamMember
+    removeTeamMember,
+    viewTeamMembers
   };
   
  

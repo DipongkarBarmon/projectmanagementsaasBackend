@@ -28,3 +28,13 @@ export interface IAssignTeamLeadPayload {
 export interface IAddTeamMemberPayload {
   userId: string;
 }
+
+
+export interface IGetAllTeamMembersPayload  {
+  searchTerm?: string;
+  page?: number;
+  limit?: number;
+  sortOrder?: "asc" | "desc";
+  sortBy?: string;
+  userId?: string; // Optional user ID for filtering
+} 

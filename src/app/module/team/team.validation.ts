@@ -35,10 +35,22 @@ const assignTeamLeadSchema = z.object({
 
 const addTeamMemberSchema = assignTeamLeadSchema; // Same structure
 
+const GetAllTeamsMembersZodSchema = z.object({
+   body : z.object({
+      searchTerm : z.string().optional(),
+      page : z.string().optional(),
+      limit : z.string().optional(),
+      sortOrder : z.string().optional(),
+      sortBy : z.string().optional(),
+      userId : z.string().uuid("Invalid user ID format").optional(),
+   }).optional()
+})
+
 export const TeamValidation = {
   createTeamSchema,
   updateTeamSchema,
   assignTeamLeadSchema,
   addTeamMemberSchema,
-  GetAllTeamsZodSchema
+  GetAllTeamsZodSchema,
+  GetAllTeamsMembersZodSchema
 };

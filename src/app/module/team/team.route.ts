@@ -26,5 +26,8 @@ router.post("/:organizationId/add-team-member/:teamId", auth({ organizationRoles
 
 router.delete("/:organizationId/:teamId/delete-member/:userId", auth({ organizationRoles: [OrganizationRole.ORG_ADMIN, OrganizationRole.TEAM_LEAD] }), TeamController.removeTeamMember);
 
+router.get("/:organizationId/:teamId/view-members", auth({ organizationRoles: ALL_ROLES }), TeamController.viewTeamMembers);
+
+ 
 
 export const TeamRoutes = router;
