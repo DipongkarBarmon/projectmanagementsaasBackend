@@ -16,7 +16,8 @@ model Team {
   teamLead     User?        @relation("TeamLead", fields: [teamLeadId], references: [id])
 
   members TeamMember[]
-
+  
+  @@unique([organizationId, name])
   @@index([organizationId])
   @@index([createdById])
   @@index([teamLeadId])

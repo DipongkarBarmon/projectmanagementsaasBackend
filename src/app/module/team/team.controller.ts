@@ -1,10 +1,10 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { TeamService } from "./team.service";
 import httpStatus from "http-status";
 
-const createTeam = catchAsync(async (req: Request, res: Response) => {
+const createTeam = catchAsync(async (req: Request, res: Response,next:NextFunction) => {
   const result = await TeamService.createTeam(req.body, req.user!, req.params.organizationId as string);
   
   sendResponse(res, { 
@@ -15,8 +15,9 @@ const createTeam = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
-const getAllTeams = catchAsync(async (req: Request, res: Response) => {
-  const result = await TeamService.getAllTeams(req.user!, req.params.organizationId as string);
+const getAllTeams = catchAsync(async (req: Request, res: Response,next:NextFunction) => {
+  const query = req.query;
+  const result = await TeamService.getAllTeams(query, req.user!, req.params.organizationId as string);
   
   sendResponse(res, { 
     success: true, 

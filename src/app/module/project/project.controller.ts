@@ -103,7 +103,7 @@ const assignProjectManager = catchAsync(async(req : Request,res : Response, next
     const organizationId = req.params.organizationId
     const projectId = req.params.projectId
     const memberId = req.body.memberId
-
+    console.log("memberId",memberId)
     const result = await ProjectService.assignProjectManager(organizationId as string,projectId as string,memberId )
 
     sendResponse(res, {

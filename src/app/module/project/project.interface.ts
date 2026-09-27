@@ -4,7 +4,9 @@ export interface ICreateProjectPayload {
 	name: string
 	description?: string
 	projectManagerId?: string
-	slug?: string
+	slug?: string,
+	startDate?: string | Date | null
+	endDate?: string | Date | null
 }
 
 export interface IUpdateProjectPayload {
@@ -23,5 +25,7 @@ export interface IProjectQuery {
     sortBy? : string,
     name? : string,
     description? : string,
-    slug? : string
+    slug? : string,
+		startDate? : string,
+		endDate? : string,
 }

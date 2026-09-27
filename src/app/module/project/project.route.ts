@@ -7,7 +7,7 @@ import { OrganizationRole } from "../../../../generated/prisma/enums"
 
 const router = Router()
 
-router.post("/:organizationId/projects",auth({organizationRoles:[OrganizationRole.ORG_ADMIN]}), validationRequest(ProjectValidation.createProjectSchema), ProjectController.createProject)
+router.post("/:organizationId/create-project",auth({organizationRoles:[OrganizationRole.ORG_ADMIN]}), validationRequest(ProjectValidation.createProjectSchema), ProjectController.createProject)
 
 router.get("/:organizationId/getAllprojects", auth({organizationRoles:[OrganizationRole.ORG_ADMIN]}), validationRequest(ProjectValidation.GetAllOrganizationProjectsZodSchema), ProjectController.getAllProjects)
 
@@ -20,7 +20,7 @@ router.delete("/:organizationId/projects/:projectId", auth({organizationRoles:[O
 
 router.patch("/:organizationId/projects/:projectId/manager", auth({organizationRoles:[OrganizationRole.ORG_ADMIN]}), validationRequest(ProjectValidation.assignProjectManagerSchema), ProjectController.assignProjectManager)
 
-router.post("/:organizationId/projects/:projectId/members",auth({organizationRoles:[OrganizationRole.ORG_ADMIN]}), validationRequest(ProjectValidation.projectMemberSchema), ProjectController.addMember)
+router.patch("/:organizationId/projects/:projectId/members",auth({organizationRoles:[OrganizationRole.ORG_ADMIN]}), validationRequest(ProjectValidation.projectMemberSchema), ProjectController.addMember)
 
 router.delete("/:organizationId/projects/:projectId/members/:userId", auth(), ProjectController.removeMember)
 

@@ -1,14 +1,70 @@
 import { prisma } from "../../lib/prisma";
 import { RequestUser } from "../../middleware/checkAuth";
-import { OrganizationRole, ActivityAction } from "../../../../generated/prisma/enums";
+import { OrganizationRole, ActivityAction, UserStatus } from "../../../../generated/prisma/enums";
 import { ActivityService } from "../activity/activity.service";
-import { ICreateTeamPayload, IUpdateTeamPayload, IAssignTeamLeadPayload, IAddTeamMemberPayload } from "./team.interface";
-
-export class TeamService {
-  static async createTeam(payload: ICreateTeamPayload, user: RequestUser, organizationId: string) {
+import { ICreateTeamPayload, IUpdateTeamPayload, IAssignTeamLeadPayload, IAddTeamMemberPayload, IGetAllTeamsPayload } from "./team.interface";
+import { TeamWhereInput } from "../../../../generated/prisma/models";
+ 
+const createTeam =async (payload: ICreateTeamPayload, user: RequestUser, organizationId: string) => {
     if (user.organizationRole !== OrganizationRole.ORG_ADMIN) {
       throw new Error("Only organization admins can create teams.");
     }
+    
+    const existingTeam = await prisma.team.findUnique({
+       where: {
+        organizationId_name: {
+          organizationId,
+          name: payload.name
+        }
+      }
+    });
+
+    if (existingTeam) {
+      throw new Error("A team with this name already exists in the organization.");
+    }
+
+    const  existingUser  = await prisma.user.findUnique({
+      where: {
+        id: user.userId
+      }
+    });
+
+    if (!existingUser) {
+      throw new Error("User not found");
+    }
+    
+    if(existingUser.status === UserStatus.BLOCKED){
+      throw new Error("Blocked users cannot create teams.");
+    } 
+
+    if(existingUser.status === UserStatus.DELETED|| existingUser.isDeleted === true){
+      throw new Error("Deleted users cannot create teams.");
+    }
+
+    if(existingUser.emailVerified === false){
+      throw new Error("Email not verified. Please verify your email to create a team.");
+    }
+
+    const existingOrgMember = await prisma.organizationMember.findFirst({
+      where: {
+        userId: user.userId,
+        organizationId
+      }
+    });
+
+    if (!existingOrgMember) {
+      throw new Error("User is not a member of this organization.");
+    }
+
+    const existOrganization = await prisma.organization.findUnique({
+      where: {
+        id: organizationId
+      }
+    });
+
+    if (!existOrganization) {
+      throw new Error("Organization not found.");
+    } 
 
     const team = await prisma.team.create({
       data: {
@@ -30,44 +86,100 @@ export class TeamService {
     return team;
   }
 
-  static async getAllTeams(user: RequestUser, organizationId: string) {
-    const isManagerOrAdmin = 
-      user.organizationRole === OrganizationRole.ORG_ADMIN || 
-      user.organizationRole === OrganizationRole.PROJECT_MANAGER;
 
-    if (isManagerOrAdmin) {
-      return await prisma.team.findMany({
-        where: { organizationId },
-        include: {
-          teamLead: { select: { id: true, name: true, email: true } },
-          _count: { select: { members: true } }
-        }
+
+const getAllTeams = async (query: IGetAllTeamsPayload, user: RequestUser, organizationId: string) => {
+
+    const limit = query.limit?Number(query.limit) : 10;
+    const page = query.page?Number(query.page): 1;
+    const skip = (page -1)*limit;
+    const sortBy = query.sortBy? query.sortBy : "createdAt";
+    const sortOrder = query.sortOrder? query.sortOrder : "desc";
+    const addConditions : TeamWhereInput[] = []
+    
+    if(query.searchTerm){
+      addConditions.push({
+        OR: [
+          { name: {
+             contains: query.searchTerm, 
+             mode: "insensitive"
+             } },
+          { 
+            description: { 
+              contains: query.searchTerm,
+               mode: "insensitive" 
+            } }
+        ]
+      }); 
+    }
+
+    if(query.name){
+      addConditions.push({
+        name: query.name
+      });
+    }
+    if(query.description){
+      addConditions.push({
+        description: query.description
+      });
+    }
+    if(query.organizationId){
+      addConditions.push({
+        organizationId: query.organizationId
       });
     }
 
-    // For TEAM_LEAD and MEMBER, return only teams they are a part of
-    return await prisma.team.findMany({
-      where: {
-        organizationId,
-        members: {
-          some: { userId: user.userId }
-        }
+    const whereCondition : TeamWhereInput = {
+      organizationId,
+      AND: addConditions.length > 0 ? addConditions : undefined
+    }
+
+    const totalTeams = await prisma.team.count({
+      where: whereCondition
+    });
+
+    const teams = await prisma.team.findMany({
+      where: whereCondition,
+      skip,
+      take: limit,
+      orderBy: {
+        [sortBy]: sortOrder
       },
       include: {
         teamLead: { select: { id: true, name: true, email: true } },
         _count: { select: { members: true } }
       }
     });
-  }
 
-  static async getTeamById(teamId: string, user: RequestUser, organizationId: string) {
+    return {
+      data :teams,
+      meta :{
+        total: totalTeams,
+        page,
+        limit
+      }, 
+    };
+  }       
+     
+
+ const getTeamById = async (teamId: string, user: RequestUser, organizationId: string) => {
     const team = await prisma.team.findUnique({
       where: { id: teamId, organizationId },
       include: {
-        teamLead: { select: { id: true, name: true, email: true } },
+        teamLead: { 
+          select: { 
+             id: true,
+             name: true, 
+             email: true 
+            } },
         members: {
           include: {
-            user: { select: { id: true, name: true, email: true } }
+            user: { 
+              select: {
+                 id: true,
+                 name: true, 
+                 email: true 
+              } }
           }
         }
       }
@@ -89,9 +201,9 @@ export class TeamService {
     }
 
     return team;
-  }
-
-  static async updateTeam(teamId: string, payload: IUpdateTeamPayload, user: RequestUser, organizationId: string) {
+  }   
+ 
+   const updateTeam = async (teamId: string, payload: IUpdateTeamPayload, user: RequestUser, organizationId: string) => {
     const team = await prisma.team.findUnique({
       where: { id: teamId, organizationId }
     });
@@ -99,11 +211,12 @@ export class TeamService {
     if (!team) {
       throw new Error("Team not found");
     }
-
+    
     const isOrgAdmin = user.organizationRole === OrganizationRole.ORG_ADMIN;
-    const isTeamLead = user.organizationRole === OrganizationRole.TEAM_LEAD && team.teamLeadId === user.userId;
-
-    if (!isOrgAdmin && !isTeamLead) {
+    const isTeamLead = user.organizationRole === OrganizationRole.TEAM_LEAD && team.teamLeadId === user.userId;   
+    
+    if (!isOrgAdmin && !isTeamLead) { 
+        
       throw new Error("You don't have permission to update this team");
     }
 
@@ -122,9 +235,8 @@ export class TeamService {
     });
 
     return updatedTeam;
-  }
-
-  static async deleteTeam(teamId: string, user: RequestUser, organizationId: string) {
+  }           
+ const deleteTeam = async (teamId: string, user: RequestUser, organizationId: string) => {
     if (user.organizationRole !== OrganizationRole.ORG_ADMIN) {
       throw new Error("Only organization admins can delete teams.");
     }
@@ -149,9 +261,74 @@ export class TeamService {
     });
 
     return team;
-  }
+  }         
+   
+  const assignTeamLead = async (teamId: string, payload: IAssignTeamLeadPayload, user: RequestUser, organizationId: string) => {
+    if (user.organizationRole !== OrganizationRole.ORG_ADMIN) {
+      throw new Error("Only organization admins can assign team leads.");
+    }
+    
+    const team = await prisma.team.findUnique({
+      where: { id: teamId, organizationId }
+    });
 
-  static async addTeamMember(teamId: string, payload: IAddTeamMemberPayload, user: RequestUser, organizationId: string) {
+    if (!team) throw new Error("Team not found");
+    
+    // Verify target user is in the organization
+    // console.log("Assigning team lead to userId:", payload.userId, "in organizationId:", organizationId);
+    
+    const orgMember = await prisma.organizationMember.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId,
+          userId: payload.userId
+        }
+      }
+    });
+    // console.log("Organization member found:", orgMember);
+
+    if (!orgMember) {
+      throw new Error("Target user is not a member of this organization");
+    }
+
+    if (orgMember.organizationRole === OrganizationRole.MEMBER) {
+      throw new Error("Target user must have at least TEAM_LEAD organization role.");
+    }
+
+    // Check if they are in the team, if not add them
+    const existingMember = await prisma.teamMember.findUnique({
+      where: { 
+        teamId_userId: { 
+          teamId, 
+          userId: payload.userId 
+        } }
+    });
+
+    if (!existingMember) {
+      const teamMember = await prisma.teamMember.create({
+        data: {
+          teamId,
+          userId: payload.userId
+        }
+      });
+
+      await ActivityService.createActivity({
+        organizationId,
+        actorId: user.userId,
+        action: ActivityAction.MEMBER_ADDED,
+        entityType: "TEAM",
+        entityId: team.id,
+        metadata: { targetUserId: payload.userId },
+        description: `Added a new member to team`,
+      });
+
+      return teamMember;
+    }
+
+    return existingMember;
+  }   
+   
+  const addTeamMember = async (teamId: string, payload: IAddTeamMemberPayload, user: RequestUser, organizationId: string) => {
     const team = await prisma.team.findUnique({
       where: { id: teamId, organizationId }
     });
@@ -176,17 +353,16 @@ export class TeamService {
     });
 
     if (!orgMember) {
-      throw new Error("User is not a member of this organization");
+      throw new Error("Target user is not a member of this organization");
     }
 
-    // Check if already in team
     const existingMember = await prisma.teamMember.findUnique({
-      where: {
-        teamId_userId: {
-          teamId,
-          userId: payload.userId
-        }
-      }
+      where: { 
+        teamId_userId: 
+        {
+           teamId, 
+           userId: payload.userId 
+        } }
     });
 
     if (existingMember) {
@@ -211,9 +387,9 @@ export class TeamService {
     });
 
     return teamMember;
-  }
-
-  static async removeTeamMember(teamId: string, targetUserId: string, user: RequestUser, organizationId: string) {
+  }     
+  
+  const removeTeamMember = async (teamId: string, targetUserId: string, user: RequestUser, organizationId: string) => {
     const team = await prisma.team.findUnique({
       where: { id: teamId, organizationId }
     });
@@ -247,8 +423,8 @@ export class TeamService {
           userId: targetUserId
         }
       }
-    });
-
+    }); 
+    
     await ActivityService.createActivity({
       organizationId,
       actorId: user.userId,
@@ -258,73 +434,19 @@ export class TeamService {
       metadata: { targetUserId },
       description: `Removed a member from team`,
     });
-
-    // If removing the team lead, unset the lead
-    if (team.teamLeadId === targetUserId) {
-      await prisma.team.update({
-        where: { id: teamId },
-        data: { teamLeadId: null }
-      });
-    }
-
+    
     return existingMember;
-  }
-
-  static async assignTeamLead(teamId: string, payload: IAssignTeamLeadPayload, user: RequestUser, organizationId: string) {
-    if (user.organizationRole !== OrganizationRole.ORG_ADMIN) {
-      throw new Error("Only organization admins can assign team leads.");
-    }
-
-    const team = await prisma.team.findUnique({
-      where: { id: teamId, organizationId }
-    });
-
-    if (!team) throw new Error("Team not found");
-
-    // Verify target user is in the organization
-    const orgMember = await prisma.organizationMember.findUnique({
-      where: {
-        organizationId_userId: {
-          organizationId,
-          userId: payload.userId
-        }
-      }
-    });
-
-    if (!orgMember) {
-      throw new Error("Target user is not a member of this organization");
-    }
-
-    if (orgMember.organizationRole === OrganizationRole.MEMBER) {
-      throw new Error("Target user must have at least TEAM_LEAD organization role.");
-    }
-
-    // Check if they are in the team, if not add them
-    const existingMember = await prisma.teamMember.findUnique({
-      where: { teamId_userId: { teamId, userId: payload.userId } }
-    });
-
-    if (!existingMember) {
-       await prisma.teamMember.create({
-         data: { teamId, userId: payload.userId }
-       });
-    }
-
-    const updatedTeam = await prisma.team.update({
-      where: { id: teamId },
-      data: { teamLeadId: payload.userId }
-    });
-
-    await ActivityService.createActivity({
-      organizationId,
-      actorId: user.userId,
-      action: ActivityAction.ASSIGNED,
-      entityType: "TEAM",
-      entityId: team.id,
-      metadata: { newLeadId: payload.userId },
-      description: `Team lead assigned`,
-    });
-
-    return updatedTeam;
-  }
-}
+  } 
+  
+ export const TeamService = {
+    createTeam,
+    getAllTeams,
+    getTeamById,
+    updateTeam,
+    deleteTeam,
+    assignTeamLead,
+    addTeamMember,
+    removeTeamMember
+  };
+  
+ 

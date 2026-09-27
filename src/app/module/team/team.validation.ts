@@ -1,23 +1,44 @@
 import { z } from "zod";
 
-export const createTeamSchema = z.object({
+const createTeamSchema = z.object({
   body: z.object({
     name: z.string().min(2, "Team name must be at least 2 characters").max(100),
     description: z.string().max(500).optional(),
   }),
 });
 
-export const updateTeamSchema = z.object({
+const updateTeamSchema = z.object({
   body: z.object({
     name: z.string().min(2).max(100).optional(),
     description: z.string().max(500).optional(),
   }),
 });
 
-export const assignTeamLeadSchema = z.object({
+const GetAllTeamsZodSchema = z.object({
+   body : z.object({
+      searchTerm : z.string().optional(),
+      page : z.string().optional(),
+      limit : z.string().optional(),
+      sortOrder : z.string().optional(),
+      sortBy : z.string().optional(),
+      name : z.string().optional(),
+      description : z.string().optional(),
+			organizationId : z.string().uuid("Invalid organization ID format").optional(),
+   }).optional()
+})
+
+const assignTeamLeadSchema = z.object({
   body: z.object({
     userId: z.string().uuid("Invalid user ID format"),
   }),
 });
 
-export const addTeamMemberSchema = assignTeamLeadSchema; // Same structure
+const addTeamMemberSchema = assignTeamLeadSchema; // Same structure
+
+export const TeamValidation = {
+  createTeamSchema,
+  updateTeamSchema,
+  assignTeamLeadSchema,
+  addTeamMemberSchema,
+  GetAllTeamsZodSchema
+};

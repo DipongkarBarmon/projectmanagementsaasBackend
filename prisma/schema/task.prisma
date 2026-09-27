@@ -37,6 +37,9 @@ model Task {
   createdBy  User        @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
   taskLabels TaskLabel[]
 
+  comments    Comment[]
+  attachments Attachment[]
+
   @@index([projectId])
   @@index([sprintId])
   @@index([parentTaskId])

@@ -57,6 +57,8 @@ const createProject = async (organizationId: string,userId: string, payload: ICr
                 name: payload.name,
                 slug: payload.slug || createProjectSlug(payload.name),
                 description: payload.description,
+                startDate: payload.startDate ? new Date(payload.startDate) : null,
+                endDate: payload.endDate ? new Date(payload.endDate) : null,
             },
             include: {
                 createdBy: {
@@ -123,6 +125,21 @@ const getAllProjects = async (organizationId: string,query: IProjectQuery) => {
             description : query.description
         })
     }
+
+    if(query.startDate){
+        addConditions.push({
+            startDate : new Date(query.startDate)
+        })
+    }
+    if(query.endDate){
+        addConditions.push({
+            endDate : new Date(query.endDate)
+        })
+    }
+
+    addConditions.push({
+        organizationId : organizationId
+    })
  
 
     const projects = await prisma.project.findMany({
@@ -399,7 +416,7 @@ const assignProjectManager = async (organizationId: string,projectId: string,mem
             },
         },
         data: {
-            role: OrganizationRole.PROJECT_MANAGER,
+            organizationRole: OrganizationRole.PROJECT_MANAGER,
         },
     })  
     
@@ -490,7 +507,7 @@ const addMember = async ( organizationId: string, projectId: string, memberId: s
             },
         },
         data: {
-            role: OrganizationRole.MEMBER,
+            organizationRole: OrganizationRole.MEMBER,
         },
     })  
     

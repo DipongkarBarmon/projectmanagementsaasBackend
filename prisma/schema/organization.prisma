@@ -17,5 +17,9 @@ model Organization {
 
   projects Project[]
 
-  labels Label[]
+  labels        Label[]
+  attachments   Attachment[]
+  activities    Activity[]
+  notifications Notification[]
+  subscription  Subscription?
 }

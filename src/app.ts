@@ -12,6 +12,12 @@ import { ProjectRouter } from './app/module/project/project.route'
 import { TeamRoutes } from './app/module/team/team.route'
 import { SprintRoutes } from './app/module/sprint/sprint.route'
 import { TaskRoutes } from './app/module/task/task.route'
+import { LabelRoutes } from './app/module/label/label.route'
+import { CommentRoutes } from './app/module/comment/comment.route'
+import { AttachmentRoutes } from './app/module/attachment/attachment.route'
+import { ActivityRoutes } from './app/module/activity/activity.route'
+import { NotificationRoutes } from './app/module/notification/notification.route'
+import { BillingRoutes } from './app/module/billing/billing.route'
 
 const app  : Application=express()
 app.use(
@@ -33,10 +39,18 @@ app.get('/',(req : Request, res : Response)=>{
 app.use('/api/v1/auth',AuthRouter)
 app.use('/api/v1/invitations', InvitationRouter)
 app.use('/api/v1/organizations',OrganizationRouter)
-app.use('/api/v1/organizations', ProjectRouter)
-app.use('/api/v1/organizations/:organizationId/teams', TeamRoutes)
+app.use('/api/v1/projects', ProjectRouter)
+app.use('/api/v1/teams', TeamRoutes)
 app.use('/api/v1/organizations/:organizationId/projects/:projectId/sprints', SprintRoutes)
 app.use('/api/v1/organizations/:organizationId/projects/:projectId/tasks', TaskRoutes)
+
+app.use('/api/v1/organizations/:organizationId/labels', LabelRoutes)
+app.use('/api/v1/organizations/:organizationId/projects/:projectId/tasks', CommentRoutes)
+app.use('/api/v1/organizations/:organizationId/projects/:projectId/tasks', AttachmentRoutes)
+app.use('/api/v1/organizations/:organizationId/activities', ActivityRoutes)
+app.use('/api/v1/organizations/:organizationId/notifications', NotificationRoutes)
+app.use('/api/v1/organizations/:organizationId/billing', BillingRoutes)
+
 app.use(notFound)
 app.use(globalErrorHandler)
 
