@@ -9,12 +9,9 @@ model Label {
   updatedAt DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
+  taskLabels   TaskLabel[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
   @@map("labels")
-  taskLabels TaskLabel[]
 }
-
- 

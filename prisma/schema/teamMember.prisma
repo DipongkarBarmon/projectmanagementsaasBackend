@@ -4,8 +4,7 @@ model TeamMember {
 
   joinedAt DateTime @default(now())
 
-
-  team Team @relation(fields: [teamId], references: [id]) 
+  team Team @relation(fields: [teamId], references: [id])
   user User @relation(fields: [userId], references: [id])
 
   @@id([teamId, userId])

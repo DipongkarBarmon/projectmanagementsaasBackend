@@ -1,14 +1,15 @@
-
 enum PlatformRole {
   SUPER_ADMIN
   USER
 }
+
 enum OrganizationRole {
   ORG_ADMIN
   PROJECT_MANAGER
   TEAM_LEAD
   MEMBER
 }
+
 enum UserStatus {
   ACTIVE
   BLOCKED
@@ -117,4 +118,6 @@ enum ActivityAction {
   INVITED
   LOGIN
   LOGOUT
+  SPRINT_STARTED
+  SPRINT_COMPLETED
 }
