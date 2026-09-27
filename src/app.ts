@@ -44,7 +44,7 @@ app.use('/api/v1/teams', TeamRoutes)
 app.use('/api/v1/sprints', SprintRoutes)
 app.use('/api/v1/tasks', TaskRoutes)
 
-app.use('/api/v1/organizations/:organizationId/labels', LabelRoutes)
+app.use('/api/v1/labels', LabelRoutes)
 app.use('/api/v1/organizations/:organizationId/projects/:projectId/tasks', CommentRoutes)
 app.use('/api/v1/organizations/:organizationId/projects/:projectId/tasks', AttachmentRoutes)
 app.use('/api/v1/organizations/:organizationId/activities', ActivityRoutes)
