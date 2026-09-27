@@ -42,7 +42,7 @@ app.use('/api/v1/organizations',OrganizationRouter)
 app.use('/api/v1/projects', ProjectRouter)
 app.use('/api/v1/teams', TeamRoutes)
 app.use('/api/v1/sprints', SprintRoutes)
-app.use('/api/v1/organizations/:organizationId/projects/:projectId/tasks', TaskRoutes)
+app.use('/api/v1/tasks', TaskRoutes)
 
 app.use('/api/v1/organizations/:organizationId/labels', LabelRoutes)
 app.use('/api/v1/organizations/:organizationId/projects/:projectId/tasks', CommentRoutes)
