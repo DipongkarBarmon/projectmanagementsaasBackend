@@ -2,8 +2,9 @@
 import { prisma } from "../../lib/prisma";
 import { ICreateOrganization, IOrganizationQuery, IUpdateOrganizationInfo } from "./organization.interface";
 import { deleteFromCloudinary, uploadToCloudinary } from "../../lib/cloudinary";
-import { OrganizationRole } from "../../../../generated/prisma/enums";
+import { OrganizationRole, ActivityAction } from "../../../../generated/prisma/enums";
 import { OrganizationWhereInput } from "../../../../generated/prisma/models";
+import { ActivityService } from "../activity/activity.service";
 
 const createOrganization = async (payload : ICreateOrganization,fileBuffer : Buffer , userId : string) => {
   const {name,slug,description} = payload
@@ -108,6 +109,15 @@ const createOrganization = async (payload : ICreateOrganization,fileBuffer : Buf
     throw new Error("Fail to fetch organization with members,Please try again")
   }
 
+  await ActivityService.createActivity({
+    organizationId: organization.id,
+    actorId: userId,
+    action: ActivityAction.CREATED,
+    entityType: "ORGANIZATION",
+    entityId: organization.id,
+    description: `Organization ${organization.name} created`,
+  });
+
    return {organizationWithMembers}
 
 }
@@ -178,6 +188,15 @@ const updateLogo = async(fileBuffer:Buffer,userId : string,organizationId : stri
         }
     }
 
+    await ActivityService.createActivity({
+        organizationId: organization.id,
+        actorId: userId,
+        action: ActivityAction.UPDATED,
+        entityType: "ORGANIZATION",
+        entityId: organization.id,
+        description: `Organization logo updated`,
+    });
+
     return {
       data : organization
     }
@@ -220,6 +239,16 @@ const updateOrganizationInfo = async(payload:IUpdateOrganizationInfo,userId : st
             members : true
         }
     })
+
+    await ActivityService.createActivity({
+        organizationId: organization.id,
+        actorId: userId,
+        action: ActivityAction.UPDATED,
+        entityType: "ORGANIZATION",
+        entityId: organization.id,
+        description: `Organization info updated`,
+    });
+
     return {organization}
 
 }
@@ -327,7 +356,7 @@ const getAllOrganizations = async(query: IOrganizationQuery)=> {
      }
 
 }
-const deleteOrganization = async(organizationId: string)=> {
+const deleteOrganization = async(organizationId: string, userId: string)=> {
     const organization = await prisma.organization.findUnique({
         where : {
             id : organizationId
@@ -341,6 +370,16 @@ const deleteOrganization = async(organizationId: string)=> {
             id : organizationId
         }
     })
+
+    await ActivityService.createActivity({
+        organizationId: organizationId,
+        actorId: userId,
+        action: ActivityAction.DELETED,
+        entityType: "ORGANIZATION",
+        entityId: organizationId,
+        description: `Organization ${organization.name} deleted`,
+    });
+
     return {
          data : deletedOrganization
     }

@@ -5,8 +5,9 @@ import crypto from "crypto"
 import ejs from "ejs"
 import { transporter } from "../../lib/nodemailer"
 import config from "../../config"
-import { InvitationStatus } from "../../../../generated/prisma/enums"
+import { InvitationStatus, ActivityAction } from "../../../../generated/prisma/enums"
 import { InvitationWhereInput } from "../../../../generated/prisma/models"
+import { ActivityService } from "../activity/activity.service"
 
 
 const hashInvitationToken = (token: string) =>
@@ -108,6 +109,16 @@ const sentInvitations = async (payload :ISentInvitationPayload,organizationId : 
          to: payload.email,
          subject: `${invitatedUser.name} invited you to join ${organization.name} on TaskFlow`,
          html
+      });
+
+      await ActivityService.createActivity({
+          organizationId: organizationId,
+          actorId: userId,
+          action: ActivityAction.INVITED,
+          entityType: "ORGANIZATION",
+          entityId: organizationId,
+          metadata: { invitedEmail: payload.email, role: payload.organizationRole },
+          description: `Sent invitation to ${payload.email}`,
       });
 } 
 
@@ -228,6 +239,15 @@ const acceptInvitation = async (token: string, userId: string) => {
 
         return membership
       })
+
+      await ActivityService.createActivity({
+          organizationId: invitation.organizationId,
+          actorId: userId,
+          action: ActivityAction.MEMBER_ADDED,
+          entityType: "ORGANIZATION",
+          entityId: invitation.organizationId,
+          description: `Accepted invitation and joined organization`,
+      });
 
       return result
 }

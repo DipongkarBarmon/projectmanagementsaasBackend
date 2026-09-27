@@ -47,7 +47,7 @@ app.use('/api/v1/tasks', TaskRoutes)
 app.use('/api/v1/labels', LabelRoutes)
 app.use('/api/v1/comments', CommentRoutes)
 app.use('/api/v1/attachments', AttachmentRoutes)
-app.use('/api/v1/organizations/:organizationId/activities', ActivityRoutes)
+app.use('/api/v1/activities', ActivityRoutes)
 app.use('/api/v1/organizations/:organizationId/notifications', NotificationRoutes)
 app.use('/api/v1/organizations/:organizationId/billing', BillingRoutes)
 

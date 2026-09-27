@@ -76,7 +76,8 @@ const getAllOrganizations = catchAsync(async(req : Request,res : Response , next
 
 const deleteOrganization = catchAsync(async(req : Request,res : Response , next : NextFunction)=> {
     const organizationId = req.params.organizationId
-    const result =await OrganizationService.deleteOrganization(organizationId as string)
+    const userId = req.user?.userId
+    const result =await OrganizationService.deleteOrganization(organizationId as string, userId as string)
     sendResponse(res,{
        success: true,
        statusCode : httpStatus.OK,

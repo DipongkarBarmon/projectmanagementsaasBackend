@@ -87,9 +87,11 @@ const deleteProject = catchAsync(async(
     res : Response,
     next : NextFunction
 ) => {
+    const organizationId = req.params.organizationId
     const projectId = req.params.projectId
+    const userId = req.user?.userId
 
-    const result = await ProjectService.deleteProject(projectId as string)
+    const result = await ProjectService.deleteProject(organizationId as string, projectId as string, userId as string)
 
     sendResponse(res, {
         success: true,
@@ -103,8 +105,9 @@ const assignProjectManager = catchAsync(async(req : Request,res : Response, next
     const organizationId = req.params.organizationId
     const projectId = req.params.projectId
     const memberId = req.body.memberId
+    const userId = req.user?.userId
     console.log("memberId",memberId)
-    const result = await ProjectService.assignProjectManager(organizationId as string,projectId as string,memberId )
+    const result = await ProjectService.assignProjectManager(organizationId as string,projectId as string,memberId, userId as string )
 
     sendResponse(res, {
         success: true,
@@ -118,11 +121,13 @@ const addMember = catchAsync(async(req : Request,res : Response, next : NextFunc
     const organizationId = req.params.organizationId
     const projectId = req.params.projectId
     const memberId = req.body.memberId
+    const userId = req.user?.userId
 
     const result = await ProjectService.addMember(
         organizationId as string,
         projectId as string,
-        memberId
+        memberId,
+        userId as string
     )
 
     sendResponse(res, {
@@ -137,11 +142,13 @@ const removeMember = catchAsync(async(req : Request,res : Response, next : NextF
     const organizationId = req.params.organizationId
     const projectId = req.params.projectId
     const memberId = req.params.userId
+    const userId = req.user?.userId
 
     const result = await ProjectService.removeMember(
         organizationId as string,
         projectId as string,
-        memberId as string
+        memberId as string,
+        userId as string
     )
 
     sendResponse(res, {

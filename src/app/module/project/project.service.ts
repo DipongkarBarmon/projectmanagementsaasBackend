@@ -1,6 +1,7 @@
-import { OrganizationRole, UserStatus } from "../../../../generated/prisma/enums"
+import { OrganizationRole, UserStatus, ActivityAction } from "../../../../generated/prisma/enums"
 import { ProjectWhereInput } from "../../../../generated/prisma/models"
 import { prisma } from "../../lib/prisma"
+import { ActivityService } from "../activity/activity.service"
 import {
     ICreateProjectPayload,
     IProjectQuery,
@@ -73,6 +74,15 @@ const createProject = async (organizationId: string,userId: string, payload: ICr
  
         return project
     })
+
+    await ActivityService.createActivity({
+        organizationId,
+        actorId: userId,
+        action: ActivityAction.CREATED,
+        entityType: "PROJECT",
+        entityId: result.id,
+        description: `Project ${result.name} created`,
+    });
 
     return result
 }
@@ -320,11 +330,20 @@ const updateProject = async (organizationId: string,projectId: string,userId: st
         },
     })
 
+    await ActivityService.createActivity({
+        organizationId,
+        actorId: userId,
+        action: ActivityAction.UPDATED,
+        entityType: "PROJECT",
+        entityId: project.id,
+        description: `Project updated`,
+    });
+
     return project
 }
 
 
-const deleteProject = async ( projectId: string,) => {
+const deleteProject = async (organizationId: string, projectId: string, userId: string) => {
     if(!projectId){
         throw new Error("Project ID is required")
     }
@@ -346,12 +365,21 @@ const deleteProject = async ( projectId: string,) => {
         } 
     })
 
+    await ActivityService.createActivity({
+        organizationId,
+        actorId: userId,
+        action: ActivityAction.DELETED,
+        entityType: "PROJECT",
+        entityId: projectId,
+        description: `Project ${existingProject.name} deleted`,
+    });
+
     return project
 }
 
 
 
-const assignProjectManager = async (organizationId: string,projectId: string,memberId: string) => {
+const assignProjectManager = async (organizationId: string,projectId: string,memberId: string, userId: string) => {
     
     if(!organizationId) {
         throw new Error("Organization ID is required")
@@ -437,13 +465,23 @@ const assignProjectManager = async (organizationId: string,projectId: string,mem
         },
     })
 
+    await ActivityService.createActivity({
+        organizationId,
+        actorId: userId,
+        action: ActivityAction.UPDATED,
+        entityType: "PROJECT",
+        entityId: projectId,
+        metadata: { targetUserId: memberId },
+        description: `Assigned project manager`,
+    });
+
     return projectManager
 }
 
 
 
 
-const addMember = async ( organizationId: string, projectId: string, memberId: string) => {
+const addMember = async ( organizationId: string, projectId: string, memberId: string, userId: string) => {
     if(!organizationId) {
         throw new Error("Organization ID is required")
     }
@@ -528,12 +566,22 @@ const addMember = async ( organizationId: string, projectId: string, memberId: s
         },
     })
 
+    await ActivityService.createActivity({
+        organizationId,
+        actorId: userId,
+        action: ActivityAction.MEMBER_ADDED,
+        entityType: "PROJECT",
+        entityId: projectId,
+        metadata: { targetUserId: memberId },
+        description: `Added member to project`,
+    });
+
     return projectMember
 }
 
 
 
-const removeMember = async ( organizationId: string, projectId: string,memberId: string) => {
+const removeMember = async ( organizationId: string, projectId: string,memberId: string, userId: string) => {
  
     if(!organizationId) {
         throw new Error("Organization ID is required")
@@ -578,6 +626,16 @@ const removeMember = async ( organizationId: string, projectId: string,memberId:
             },
         },
     })
+
+    await ActivityService.createActivity({
+        organizationId,
+        actorId: userId,
+        action: ActivityAction.MEMBER_REMOVED,
+        entityType: "PROJECT",
+        entityId: projectId,
+        metadata: { targetUserId: memberId },
+        description: `Removed member from project`,
+    });
 
     return projectMember
 }
