@@ -27,7 +27,7 @@ const sentInvitations = async (payload :ISentInvitationPayload,organizationId : 
 
     const organization = await prisma.organization.findUnique({
         where : {
-            id : organizationId
+            id :organizationId
         }
     })
 

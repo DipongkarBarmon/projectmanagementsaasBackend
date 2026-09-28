@@ -2,7 +2,7 @@ import app from "./app";
 import config from "./app/config";
 import { prisma } from "./app/lib/prisma";
 import { redisClient } from "./app/lib/redis";
-import { seedPlans } from "./app/utils/seed";
+import { seedPlans, seedSupperAdmin } from "./app/utils/seed";
 
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
@@ -18,6 +18,8 @@ const main =async ()=> {
    console.log("Connected to the redis successfully")
 
    await seedPlans()
+
+   await seedSupperAdmin()
     app.listen(PORT,()=>{
        console.log(`Server is running on port: http://localhost:${PORT}`)
     })

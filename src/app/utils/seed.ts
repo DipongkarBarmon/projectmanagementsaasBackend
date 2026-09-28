@@ -1,3 +1,6 @@
+import bcrypt from "bcryptjs";
+import { PlatformRole } from "../../../generated/prisma/enums";
+import config from "../config";
 import { prisma } from "../lib/prisma"
 
 export const seedPlans = async () => {
@@ -68,4 +71,58 @@ export const seedPlans = async () => {
    }catch (error) {
     console.error('Error seeding plans:', error)
    }
+}
+
+export const seedSupperAdmin = async () => {
+    
+  try{
+      const isExistSuperAdmin = await prisma.user.findFirst({
+      where: {
+        platformRole : PlatformRole.SUPER_ADMIN 
+      }
+    })
+
+    if(isExistSuperAdmin){ 
+      console.log("Super Admin already exists. Skipping seeding.");
+      return;
+
+    }
+
+    const name = config.super_admin_name;
+    const email = config.super_admin_email;
+    const password = config.super_admin_password;
+
+    if(!name || !email || !password) {
+      throw new Error("Super Admin name, email and password must be provided in the environment variables"); 
+    }
+  
+    const hashedPassword = await bcrypt.hash(password , Number(config.bcrypt_salt_rounds));
+
+
+    const createSuperAdmin = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        platformRole: PlatformRole.SUPER_ADMIN,
+        emailVerified: true,
+        
+      },
+      omit: {
+        password: true,
+      },
+    })
+
+    console.log("Super Admin created successfully", createSuperAdmin);
+
+
+  } catch (error) {
+    console.log("Error while seeding super admin", error);
+    await prisma.user.delete({
+        where : {
+          email : config.super_admin_email,
+        }
+    })  
+  }
+
 }

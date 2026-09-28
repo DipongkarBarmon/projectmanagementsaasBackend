@@ -89,6 +89,7 @@ export const auth = (options: AuthOptions ={}) => {
 					 throw new Error("Organization Id is required!")
 				}
 
+				console.log("Organization Id:", organizationId, "User Id:", userId);
 			  const membership = await prisma.organizationMember.findUnique({
            where: {
 						organizationId_userId: {
