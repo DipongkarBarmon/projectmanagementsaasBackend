@@ -22,4 +22,6 @@ model Organization {
   activities    Activity[]
   notifications Notification[]
   subscription  Subscription?
+  invoices      Invoice[]
+  payments      Payment[]
 }

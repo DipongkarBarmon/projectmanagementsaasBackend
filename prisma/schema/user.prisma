@@ -31,6 +31,7 @@ model User {
   attachments   Attachment[]
   activities    Activity[]
   notifications Notification[]
+  verifiedPayments Payment[]
 
   @@index([email])
 }

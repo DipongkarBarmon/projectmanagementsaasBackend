@@ -17,7 +17,8 @@ import { CommentRoutes } from './app/module/comment/comment.route'
 import { AttachmentRoutes } from './app/module/attachment/attachment.route'
 import { ActivityRoutes } from './app/module/activity/activity.route'
 import { NotificationRoutes } from './app/module/notification/notification.route'
-import { BillingRoutes } from './app/module/billing/billing.route'
+import { OrganizationBillingRoutes } from './app/module/organizationbilling/organizationbilling.route'
+import { AdminBillingRoutes } from './app/module/adminbilling/adminbilling.route'
 
 const app  : Application=express()
 app.use(
@@ -49,7 +50,8 @@ app.use('/api/v1/comments', CommentRoutes)
 app.use('/api/v1/attachments', AttachmentRoutes)
 app.use('/api/v1/activities', ActivityRoutes)
 app.use('/api/v1/organizations/:organizationId/notifications', NotificationRoutes)
-app.use('/api/v1/organizations/:organizationId/billing', BillingRoutes)
+app.use('/api/v1/billing', OrganizationBillingRoutes)
+app.use('/api/v1/billing', AdminBillingRoutes)
 
 app.use(notFound)
 app.use(globalErrorHandler)

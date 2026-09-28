@@ -70,30 +70,46 @@ const createOrganization = async (payload : ICreateOrganization,fileBuffer : Buf
      throw new Error("Does not upload logo in cloudinary,Please try again")
   }
 
-  const organization = await prisma.organization.create({
-     data : {
-       name,
-       slug,
-       description,
-       logo : cloudinaryResult.secure_url,
-       logoPublicId: cloudinaryResult.public_id
-     }
-  })
-
-  if(!organization){
-    throw new Error("Fail to create organization,Please try again")
+  const freePlan = await prisma.plan.findUnique({ where: { name: 'FREE' } });
+  if (!freePlan) {
+    throw new Error("Free plan not found in the system. Contact support.");
   }
 
-  const organizationMember = await prisma.organizationMember.create({
-    data :{
-       userId,
-       organizationId : organization.id,
-       organizationRole:OrganizationRole.ORG_ADMIN
-    }
-  })
+  const { organization, organizationMember } = await prisma.$transaction(async (tx) => {
+    const org = await tx.organization.create({
+      data: {
+        name,
+        slug,
+        description,
+        logo: cloudinaryResult.secure_url,
+        logoPublicId: cloudinaryResult.public_id
+      }
+    });
 
-  if(!organizationMember){
-    throw new Error("Fail to create organization member,Please try again")
+    const member = await tx.organizationMember.create({
+      data: {
+        userId,
+        organizationId: org.id,
+        organizationRole: OrganizationRole.ORG_ADMIN
+      }
+    });
+
+    await tx.subscription.create({
+      data: {
+        organizationId: org.id,
+        planId: freePlan.id,
+        status: 'ACTIVE',
+        interval: 'MONTHLY',
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(new Date().setMonth(new Date().getMonth() + 120)), // 10 years for Free by default
+      }
+    });
+
+    return { organization: org, organizationMember: member };
+  });
+
+  if (!organization || !organizationMember) {
+    throw new Error("Fail to create organization and member. Please try again.");
   }
 
   const organizationWithMembers = await prisma.organization.findUnique({
@@ -262,7 +278,9 @@ const getOrganizationById = async(organizationId: string)=> {
         },
         include : {
             members : true,
-
+            subscription: {
+                include: { plan: true }
+            }
         }
     })
     if(!organization){
@@ -334,6 +352,11 @@ const getAllOrganizations = async(query: IOrganizationQuery)=> {
         take: limit,
         orderBy: {
             [sortBy] : sortOrder
+        },
+        include: {
+            subscription: {
+                include: { plan: true }
+            }
         }
      })
     

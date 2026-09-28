@@ -67,14 +67,22 @@ export const JsonNull = runtime.JsonNull;
  */
 export const AnyNull = runtime.AnyNull;
 export const ModelName = {
+    Activity: 'Activity',
+    Attachment: 'Attachment',
+    Comment: 'Comment',
     Invitation: 'Invitation',
+    Invoice: 'Invoice',
     Label: 'Label',
+    Notification: 'Notification',
     OAuthAccount: 'OAuthAccount',
     Organization: 'Organization',
     OrganizationMember: 'OrganizationMember',
+    Payment: 'Payment',
+    Plan: 'Plan',
     Project: 'Project',
     ProjectMember: 'ProjectMember',
     Sprint: 'Sprint',
+    Subscription: 'Subscription',
     Task: 'Task',
     TaskLabel: 'TaskLabel',
     Team: 'Team',
@@ -90,6 +98,39 @@ export const TransactionIsolationLevel = runtime.makeStrictEnum({
     RepeatableRead: 'RepeatableRead',
     Serializable: 'Serializable'
 });
+export const ActivityScalarFieldEnum = {
+    id: 'id',
+    organizationId: 'organizationId',
+    actorId: 'actorId',
+    action: 'action',
+    entityType: 'entityType',
+    entityId: 'entityId',
+    description: 'description',
+    metadata: 'metadata',
+    createdAt: 'createdAt'
+};
+export const AttachmentScalarFieldEnum = {
+    id: 'id',
+    organizationId: 'organizationId',
+    taskId: 'taskId',
+    uploadedById: 'uploadedById',
+    originalName: 'originalName',
+    fileName: 'fileName',
+    mimeType: 'mimeType',
+    size: 'size',
+    url: 'url',
+    storageKey: 'storageKey',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+};
+export const CommentScalarFieldEnum = {
+    id: 'id',
+    taskId: 'taskId',
+    userId: 'userId',
+    content: 'content',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+};
 export const InvitationScalarFieldEnum = {
     id: 'id',
     organizationId: 'organizationId',
@@ -103,11 +144,40 @@ export const InvitationScalarFieldEnum = {
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
 };
+export const InvoiceScalarFieldEnum = {
+    id: 'id',
+    organizationId: 'organizationId',
+    subscriptionId: 'subscriptionId',
+    invoiceNumber: 'invoiceNumber',
+    subtotal: 'subtotal',
+    tax: 'tax',
+    total: 'total',
+    status: 'status',
+    periodStart: 'periodStart',
+    periodEnd: 'periodEnd',
+    dueDate: 'dueDate',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+};
 export const LabelScalarFieldEnum = {
     id: 'id',
     organizationId: 'organizationId',
     name: 'name',
     color: 'color',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+};
+export const NotificationScalarFieldEnum = {
+    id: 'id',
+    userId: 'userId',
+    organizationId: 'organizationId',
+    type: 'type',
+    title: 'title',
+    message: 'message',
+    entityType: 'entityType',
+    entityId: 'entityId',
+    metadata: 'metadata',
+    readAt: 'readAt',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
 };
@@ -136,6 +206,35 @@ export const OrganizationMemberScalarFieldEnum = {
     userId: 'userId',
     organizationRole: 'organizationRole',
     joinedAt: 'joinedAt'
+};
+export const PaymentScalarFieldEnum = {
+    id: 'id',
+    invoiceId: 'invoiceId',
+    organizationId: 'organizationId',
+    paymentMethod: 'paymentMethod',
+    amount: 'amount',
+    transactionId: 'transactionId',
+    senderNumber: 'senderNumber',
+    status: 'status',
+    verifiedAt: 'verifiedAt',
+    verifiedById: 'verifiedById',
+    failureReason: 'failureReason',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+};
+export const PlanScalarFieldEnum = {
+    id: 'id',
+    name: 'name',
+    description: 'description',
+    priceMonthly: 'priceMonthly',
+    priceYearly: 'priceYearly',
+    maxMembers: 'maxMembers',
+    maxTeams: 'maxTeams',
+    maxProjects: 'maxProjects',
+    maxStorageBytes: 'maxStorageBytes',
+    isActive: 'isActive',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
 };
 export const ProjectScalarFieldEnum = {
     id: 'id',
@@ -168,6 +267,19 @@ export const SprintScalarFieldEnum = {
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
 };
+export const SubscriptionScalarFieldEnum = {
+    id: 'id',
+    organizationId: 'organizationId',
+    planId: 'planId',
+    status: 'status',
+    interval: 'interval',
+    currentPeriodStart: 'currentPeriodStart',
+    currentPeriodEnd: 'currentPeriodEnd',
+    cancelAtPeriodEnd: 'cancelAtPeriodEnd',
+    cancelledAt: 'cancelledAt',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+};
 export const TaskScalarFieldEnum = {
     id: 'id',
     projectId: 'projectId',
@@ -196,6 +308,7 @@ export const TeamScalarFieldEnum = {
     name: 'name',
     description: 'description',
     createdById: 'createdById',
+    teamLeadId: 'teamLeadId',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
 };
@@ -224,9 +337,18 @@ export const SortOrder = {
     asc: 'asc',
     desc: 'desc'
 };
+export const NullableJsonNullValueInput = {
+    DbNull: DbNull,
+    JsonNull: JsonNull
+};
 export const QueryMode = {
     default: 'default',
     insensitive: 'insensitive'
+};
+export const JsonNullValueFilter = {
+    DbNull: DbNull,
+    JsonNull: JsonNull,
+    AnyNull: AnyNull
 };
 export const NullsOrder = {
     first: 'first',

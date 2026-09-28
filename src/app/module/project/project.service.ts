@@ -2,6 +2,7 @@ import { OrganizationRole, UserStatus, ActivityAction } from "../../../../genera
 import { ProjectWhereInput } from "../../../../generated/prisma/models"
 import { prisma } from "../../lib/prisma"
 import { ActivityService } from "../activity/activity.service"
+import { OrganizationBillingService } from "../organizationbilling/organizationbilling.service"
 import {
     ICreateProjectPayload,
     IProjectQuery,
@@ -49,6 +50,7 @@ const createProject = async (organizationId: string,userId: string, payload: ICr
         throw new Error("You are not a member of this organization")
     }
 
+    await OrganizationBillingService.checkLimit(organizationId, "PROJECT");
  
     const result = await prisma.$transaction(async (transaction) => {
         const project = await transaction.project.create({

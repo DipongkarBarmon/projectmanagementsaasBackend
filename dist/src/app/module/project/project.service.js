@@ -1,5 +1,7 @@
-import { OrganizationRole, UserStatus } from "../../../../generated/prisma/enums";
+import { OrganizationRole, UserStatus, ActivityAction } from "../../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
+import { ActivityService } from "../activity/activity.service";
+import { OrganizationBillingService } from "../organizationbilling/organizationbilling.service";
 const createProjectSlug = (name) => {
     const slug = name
         .trim()
@@ -31,6 +33,7 @@ const createProject = async (organizationId, userId, payload) => {
     if (!member) {
         throw new Error("You are not a member of this organization");
     }
+    await OrganizationBillingService.checkLimit(organizationId, "PROJECT");
     const result = await prisma.$transaction(async (transaction) => {
         const project = await transaction.project.create({
             data: {
@@ -39,6 +42,8 @@ const createProject = async (organizationId, userId, payload) => {
                 name: payload.name,
                 slug: payload.slug || createProjectSlug(payload.name),
                 description: payload.description,
+                startDate: payload.startDate ? new Date(payload.startDate) : null,
+                endDate: payload.endDate ? new Date(payload.endDate) : null,
             },
             include: {
                 createdBy: {
@@ -51,6 +56,14 @@ const createProject = async (organizationId, userId, payload) => {
             },
         });
         return project;
+    });
+    await ActivityService.createActivity({
+        organizationId,
+        actorId: userId,
+        action: ActivityAction.CREATED,
+        entityType: "PROJECT",
+        entityId: result.id,
+        description: `Project ${result.name} created`,
     });
     return result;
 };
@@ -94,6 +107,19 @@ const getAllProjects = async (organizationId, query) => {
             description: query.description
         });
     }
+    if (query.startDate) {
+        addConditions.push({
+            startDate: new Date(query.startDate)
+        });
+    }
+    if (query.endDate) {
+        addConditions.push({
+            endDate: new Date(query.endDate)
+        });
+    }
+    addConditions.push({
+        organizationId: organizationId
+    });
     const projects = await prisma.project.findMany({
         where: {
             AND: addConditions
@@ -187,10 +213,6 @@ const getProject = async (organizationId, projectId) => {
     }
     return project;
 };
-const getActivity = async (organizationId, projectId) => {
-    await getProject(organizationId, projectId);
-    return [];
-};
 const updateProject = async (organizationId, projectId, userId, payload) => {
     if (!organizationId) {
         throw new Error("Organization ID is required");
@@ -250,9 +272,17 @@ const updateProject = async (organizationId, projectId, userId, payload) => {
             projectMembers: true,
         },
     });
+    await ActivityService.createActivity({
+        organizationId,
+        actorId: userId,
+        action: ActivityAction.UPDATED,
+        entityType: "PROJECT",
+        entityId: project.id,
+        description: `Project updated`,
+    });
     return project;
 };
-const deleteProject = async (projectId) => {
+const deleteProject = async (organizationId, projectId, userId) => {
     if (!projectId) {
         throw new Error("Project ID is required");
     }
@@ -269,9 +299,17 @@ const deleteProject = async (projectId) => {
             id: projectId,
         }
     });
+    await ActivityService.createActivity({
+        organizationId,
+        actorId: userId,
+        action: ActivityAction.DELETED,
+        entityType: "PROJECT",
+        entityId: projectId,
+        description: `Project ${existingProject.name} deleted`,
+    });
     return project;
 };
-const assignProjectManager = async (organizationId, projectId, memberId) => {
+const assignProjectManager = async (organizationId, projectId, memberId, userId) => {
     if (!organizationId) {
         throw new Error("Organization ID is required");
     }
@@ -326,7 +364,7 @@ const assignProjectManager = async (organizationId, projectId, memberId) => {
             },
         },
         data: {
-            role: OrganizationRole.PROJECT_MANAGER,
+            organizationRole: OrganizationRole.PROJECT_MANAGER,
         },
     });
     const projectManager = await prisma.projectMember.upsert({
@@ -345,9 +383,18 @@ const assignProjectManager = async (organizationId, projectId, memberId) => {
             userId: manager.userId,
         },
     });
+    await ActivityService.createActivity({
+        organizationId,
+        actorId: userId,
+        action: ActivityAction.UPDATED,
+        entityType: "PROJECT",
+        entityId: projectId,
+        metadata: { targetUserId: memberId },
+        description: `Assigned project manager`,
+    });
     return projectManager;
 };
-const addMember = async (organizationId, projectId, memberId) => {
+const addMember = async (organizationId, projectId, memberId, userId) => {
     if (!organizationId) {
         throw new Error("Organization ID is required");
     }
@@ -402,7 +449,7 @@ const addMember = async (organizationId, projectId, memberId) => {
             },
         },
         data: {
-            role: OrganizationRole.MEMBER,
+            organizationRole: OrganizationRole.MEMBER,
         },
     });
     const projectMember = await prisma.projectMember.upsert({
@@ -421,9 +468,18 @@ const addMember = async (organizationId, projectId, memberId) => {
             userId: manager.userId,
         },
     });
+    await ActivityService.createActivity({
+        organizationId,
+        actorId: userId,
+        action: ActivityAction.MEMBER_ADDED,
+        entityType: "PROJECT",
+        entityId: projectId,
+        metadata: { targetUserId: memberId },
+        description: `Added member to project`,
+    });
     return projectMember;
 };
-const removeMember = async (organizationId, projectId, memberId) => {
+const removeMember = async (organizationId, projectId, memberId, userId) => {
     if (!organizationId) {
         throw new Error("Organization ID is required");
     }
@@ -461,13 +517,21 @@ const removeMember = async (organizationId, projectId, memberId) => {
             },
         },
     });
+    await ActivityService.createActivity({
+        organizationId,
+        actorId: userId,
+        action: ActivityAction.MEMBER_REMOVED,
+        entityType: "PROJECT",
+        entityId: projectId,
+        metadata: { targetUserId: memberId },
+        description: `Removed member from project`,
+    });
     return projectMember;
 };
 export const ProjectService = {
     createProject,
     getAllProjects,
     getProject,
-    getActivity,
     updateProject,
     deleteProject,
     assignProjectManager,

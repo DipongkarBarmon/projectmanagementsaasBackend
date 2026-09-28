@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { deleteFromCloudinary, uploadToCloudinary } from "../../lib/cloudinary";
-import { OrganizationRole } from "../../../../generated/prisma/enums";
+import { OrganizationRole, ActivityAction } from "../../../../generated/prisma/enums";
+import { ActivityService } from "../activity/activity.service";
 const createOrganization = async (payload, fileBuffer, userId) => {
     const { name, slug, description } = payload;
     if (!slug) {
@@ -53,27 +54,41 @@ const createOrganization = async (payload, fileBuffer, userId) => {
     if (!cloudinaryResult) {
         throw new Error("Does not upload logo in cloudinary,Please try again");
     }
-    const organization = await prisma.organization.create({
-        data: {
-            name,
-            slug,
-            description,
-            logo: cloudinaryResult.secure_url,
-            logoPublicId: cloudinaryResult.public_id
-        }
-    });
-    if (!organization) {
-        throw new Error("Fail to create organization,Please try again");
+    const freePlan = await prisma.plan.findUnique({ where: { name: 'FREE' } });
+    if (!freePlan) {
+        throw new Error("Free plan not found in the system. Contact support.");
     }
-    const organizationMember = await prisma.organizationMember.create({
-        data: {
-            userId,
-            organizationId: organization.id,
-            organizationRole: OrganizationRole.ORG_ADMIN
-        }
+    const { organization, organizationMember } = await prisma.$transaction(async (tx) => {
+        const org = await tx.organization.create({
+            data: {
+                name,
+                slug,
+                description,
+                logo: cloudinaryResult.secure_url,
+                logoPublicId: cloudinaryResult.public_id
+            }
+        });
+        const member = await tx.organizationMember.create({
+            data: {
+                userId,
+                organizationId: org.id,
+                organizationRole: OrganizationRole.ORG_ADMIN
+            }
+        });
+        await tx.subscription.create({
+            data: {
+                organizationId: org.id,
+                planId: freePlan.id,
+                status: 'ACTIVE',
+                interval: 'MONTHLY',
+                currentPeriodStart: new Date(),
+                currentPeriodEnd: new Date(new Date().setMonth(new Date().getMonth() + 120)), // 10 years for Free by default
+            }
+        });
+        return { organization: org, organizationMember: member };
     });
-    if (!organizationMember) {
-        throw new Error("Fail to create organization member,Please try again");
+    if (!organization || !organizationMember) {
+        throw new Error("Fail to create organization and member. Please try again.");
     }
     const organizationWithMembers = await prisma.organization.findUnique({
         where: {
@@ -86,6 +101,14 @@ const createOrganization = async (payload, fileBuffer, userId) => {
     if (!organizationWithMembers) {
         throw new Error("Fail to fetch organization with members,Please try again");
     }
+    await ActivityService.createActivity({
+        organizationId: organization.id,
+        actorId: userId,
+        action: ActivityAction.CREATED,
+        entityType: "ORGANIZATION",
+        entityId: organization.id,
+        description: `Organization ${organization.name} created`,
+    });
     return { organizationWithMembers };
 };
 const updateLogo = async (fileBuffer, userId, organizationId) => {
@@ -147,6 +170,14 @@ const updateLogo = async (fileBuffer, userId, organizationId) => {
             console.error("Failed to delete old logo from Cloudinary:", error);
         }
     }
+    await ActivityService.createActivity({
+        organizationId: organization.id,
+        actorId: userId,
+        action: ActivityAction.UPDATED,
+        entityType: "ORGANIZATION",
+        entityId: organization.id,
+        description: `Organization logo updated`,
+    });
     return {
         data: organization
     };
@@ -183,6 +214,14 @@ const updateOrganizationInfo = async (payload, userId, organizationId) => {
             members: true
         }
     });
+    await ActivityService.createActivity({
+        organizationId: organization.id,
+        actorId: userId,
+        action: ActivityAction.UPDATED,
+        entityType: "ORGANIZATION",
+        entityId: organization.id,
+        description: `Organization info updated`,
+    });
     return { organization };
 };
 const getOrganizationById = async (organizationId) => {
@@ -192,6 +231,9 @@ const getOrganizationById = async (organizationId) => {
         },
         include: {
             members: true,
+            subscription: {
+                include: { plan: true }
+            }
         }
     });
     if (!organization) {
@@ -256,6 +298,11 @@ const getAllOrganizations = async (query) => {
         take: limit,
         orderBy: {
             [sortBy]: sortOrder
+        },
+        include: {
+            subscription: {
+                include: { plan: true }
+            }
         }
     });
     const totalOrganizations = await prisma.organization.count({
@@ -274,7 +321,7 @@ const getAllOrganizations = async (query) => {
         }
     };
 };
-const deleteOrganization = async (organizationId) => {
+const deleteOrganization = async (organizationId, userId) => {
     const organization = await prisma.organization.findUnique({
         where: {
             id: organizationId
@@ -287,6 +334,14 @@ const deleteOrganization = async (organizationId) => {
         where: {
             id: organizationId
         }
+    });
+    await ActivityService.createActivity({
+        organizationId: organizationId,
+        actorId: userId,
+        action: ActivityAction.DELETED,
+        entityType: "ORGANIZATION",
+        entityId: organizationId,
+        description: `Organization ${organization.name} deleted`,
     });
     return {
         data: deletedOrganization

@@ -17,6 +17,9 @@
     "lint:check": "npx @biomejs/biome lint",
     "lint:fix": "npx @biomejs/biome lint ./src"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
     "@types/cookie-parser": "^1.4.10",
@@ -52,6 +55,7 @@
     "pg": "^8.23.0",
     "redis": "^6.2.1",
     "streamifier": "^0.1.1",
+    "tsup": "^8.5.1",
     "zod": "^4.6.5"
   }
 }

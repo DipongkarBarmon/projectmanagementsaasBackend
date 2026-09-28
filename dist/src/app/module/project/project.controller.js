@@ -52,8 +52,10 @@ const updateProject = catchAsync(async (req, res, next) => {
     });
 });
 const deleteProject = catchAsync(async (req, res, next) => {
+    const organizationId = req.params.organizationId;
     const projectId = req.params.projectId;
-    const result = await ProjectService.deleteProject(projectId);
+    const userId = req.user?.userId;
+    const result = await ProjectService.deleteProject(organizationId, projectId, userId);
     sendResponse(res, {
         success: true,
         statusCode: httpStatus.OK,
@@ -65,7 +67,9 @@ const assignProjectManager = catchAsync(async (req, res, next) => {
     const organizationId = req.params.organizationId;
     const projectId = req.params.projectId;
     const memberId = req.body.memberId;
-    const result = await ProjectService.assignProjectManager(organizationId, projectId, memberId);
+    const userId = req.user?.userId;
+    console.log("memberId", memberId);
+    const result = await ProjectService.assignProjectManager(organizationId, projectId, memberId, userId);
     sendResponse(res, {
         success: true,
         statusCode: httpStatus.OK,
@@ -77,7 +81,8 @@ const addMember = catchAsync(async (req, res, next) => {
     const organizationId = req.params.organizationId;
     const projectId = req.params.projectId;
     const memberId = req.body.memberId;
-    const result = await ProjectService.addMember(organizationId, projectId, memberId);
+    const userId = req.user?.userId;
+    const result = await ProjectService.addMember(organizationId, projectId, memberId, userId);
     sendResponse(res, {
         success: true,
         statusCode: httpStatus.CREATED,
@@ -89,22 +94,12 @@ const removeMember = catchAsync(async (req, res, next) => {
     const organizationId = req.params.organizationId;
     const projectId = req.params.projectId;
     const memberId = req.params.userId;
-    const result = await ProjectService.removeMember(organizationId, projectId, memberId);
+    const userId = req.user?.userId;
+    const result = await ProjectService.removeMember(organizationId, projectId, memberId, userId);
     sendResponse(res, {
         success: true,
         statusCode: httpStatus.OK,
         message: "Project member removed successfully!",
-        data: result
-    });
-});
-const getActivity = catchAsync(async (req, res, next) => {
-    const organizationId = req.params.organizationId;
-    const projectId = req.params.projectId;
-    const result = await ProjectService.getActivity(organizationId, projectId);
-    sendResponse(res, {
-        success: true,
-        statusCode: httpStatus.OK,
-        message: "Project activity fetched successfully!",
         data: result
     });
 });
@@ -117,5 +112,4 @@ export const ProjectController = {
     assignProjectManager,
     addMember,
     removeMember,
-    getActivity
 };
