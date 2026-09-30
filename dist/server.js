@@ -43,7 +43,10 @@ var config = {
   bkash_app_key: process.env.BKASH_APP_KEY,
   bkash_app_secret: process.env.BKASH_APP_SECRET,
   bkash_callback_url: process.env.BKASH_CALLBACK_URL,
-  bkash_merchant_number: process.env.BKASH_MERCHANT_NUMBER
+  bkash_merchant_number: process.env.BKASH_MERCHANT_NUMBER,
+  super_admin_name: process.env.SUPER_ADMIN_NAME,
+  super_admin_email: process.env.SUPER_ADMIN_EMAIL,
+  super_admin_password: process.env.SUPER_ADMIN_PASSWORD
 };
 var config_default = config;
 
@@ -2025,6 +2028,7 @@ var auth = (options = {}) => {
       if (!organizationId) {
         throw new Error("Organization Id is required!");
       }
+      console.log("Organization Id:", organizationId, "User Id:", userId);
       const membership = await prisma.organizationMember.findUnique({
         where: {
           organizationId_userId: {
@@ -5859,6 +5863,7 @@ app.use(globalErrorHandler);
 var app_default = app;
 
 // src/app/utils/seed.ts
+import bcrypt2 from "bcryptjs";
 var seedPlans = async () => {
   try {
     const existingPlans = await prisma.plan.findMany();
@@ -5925,6 +5930,46 @@ var seedPlans = async () => {
     console.error("Error seeding plans:", error);
   }
 };
+var seedSupperAdmin = async () => {
+  try {
+    const isExistSuperAdmin = await prisma.user.findFirst({
+      where: {
+        platformRole: PlatformRole.SUPER_ADMIN
+      }
+    });
+    if (isExistSuperAdmin) {
+      console.log("Super Admin already exists. Skipping seeding.");
+      return;
+    }
+    const name = config_default.super_admin_name;
+    const email2 = config_default.super_admin_email;
+    const password = config_default.super_admin_password;
+    if (!name || !email2 || !password) {
+      throw new Error("Super Admin name, email and password must be provided in the environment variables");
+    }
+    const hashedPassword = await bcrypt2.hash(password, Number(config_default.bcrypt_salt_rounds));
+    const createSuperAdmin = await prisma.user.create({
+      data: {
+        name,
+        email: email2,
+        password: hashedPassword,
+        platformRole: PlatformRole.SUPER_ADMIN,
+        emailVerified: true
+      },
+      omit: {
+        password: true
+      }
+    });
+    console.log("Super Admin created successfully", createSuperAdmin);
+  } catch (error) {
+    console.log("Error while seeding super admin", error);
+    await prisma.user.delete({
+      where: {
+        email: config_default.super_admin_email
+      }
+    });
+  }
+};
 
 // src/server.ts
 BigInt.prototype.toJSON = function() {
@@ -5938,6 +5983,7 @@ var main = async () => {
     await redisClient.connect();
     console.log("Connected to the redis successfully");
     await seedPlans();
+    await seedSupperAdmin();
     app_default.listen(PORT, () => {
       console.log(`Server is running on port: http://localhost:${PORT}`);
     });
